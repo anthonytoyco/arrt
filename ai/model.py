@@ -47,7 +47,7 @@ def benford_analysis(amounts: list[float]) -> dict:
             if s and s[0] != "0":
                 digits.append(int(s[0]))
 
-    if len(digits) < 5:
+    if len(digits) < 50:
         return {"sufficient_data": False, "total_transactions": len(digits)}
 
     n = len(digits)
