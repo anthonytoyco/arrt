@@ -1,3 +1,8 @@
+# CORE TODO:
+
+1. Gemini Lens.
+2. Fraud Advice.
+
 EASY (1-2 hours each) — get these done tonight
 Duplicate Invoice Detection — hash invoice numbers, amounts, dates, and vendor combos. Flag exact and near-duplicates. This is embarrassingly simple but catches one of the most common small business fraud types. Just group-by and count. Small businesses lose thousands to duplicate payments they never notice.
 
