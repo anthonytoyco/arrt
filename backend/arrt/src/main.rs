@@ -1,11 +1,17 @@
+<<<<<<< HEAD
 use axum::{routing::get, Router};
 use sqlx::postgres::PgPoolOptions;
 use std::{net::SocketAddr, sync::Arc};
 use tower_http::cors::{Any, CorsLayer};
+=======
+use axum::{routing::{get, post}, Router};
+use std::net::SocketAddr;
+>>>>>>> origin/main
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod models;
 mod routes;
+<<<<<<< HEAD
 mod state;
 
 use state::AppState;
@@ -15,6 +21,12 @@ async fn main() {
     let env_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(".env");
     dotenvy::from_path_override(&env_path).ok();
 
+=======
+mod services;
+
+#[tokio::main]
+async fn main() {
+>>>>>>> origin/main
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
@@ -22,6 +34,7 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+<<<<<<< HEAD
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
     let pool = PgPoolOptions::new()
@@ -42,6 +55,12 @@ async fn main() {
         .route("/api/transactions", get(routes::transactions::list))
         .with_state(state)
         .layer(cors);
+=======
+    let app = Router::new()
+        .route("/", get(root))
+        .route("/api/fraud/scan", post(routes::fraud::scan));
+        // TODO (Backend 1): add .with_state(state) and GET /api/transactions here
+>>>>>>> origin/main
 
     let port: u16 = std::env::var("PORT")
         .unwrap_or_else(|_| "3000".to_string())
@@ -54,3 +73,10 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
+<<<<<<< HEAD
+=======
+
+async fn root() -> &'static str {
+    "Hello, World!"
+}
+>>>>>>> origin/main
