@@ -1,6 +1,68 @@
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080";
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
 
-// ── Types matching the API contract ──────────────────────────────────────────
+// ── Types matching Rust backend ───────────────────────────────────────────────
+
+export interface FraudResult {
+  transaction_id: string;
+  customer_name: string | null;
+  amount: number | null;
+  risk_score: number;
+  risk_level: "HIGH" | "MEDIUM" | "LOW";
+  triggered_rules: string[];
+  ai_explanation: string | null;
+}
+
+export interface FraudScanResponse {
+  total_scanned: number;
+  flagged: number;
+  results: FraudResult[];
+}
+
+export interface Transaction {
+  transaction_id: string;
+  order_id: string | null;
+  customer_id: string | null;
+  customer_name: string | null;
+  timestamp: string | null;
+  amount: number | null;
+  currency: string | null;
+  payment_method: string | null;
+  card_last4: string | null;
+  card_brand: string | null;
+  transaction_status: string | null;
+  merchant_id: string | null;
+  refund_status: string | null;
+  ip_country: string | null;
+  ip_is_vpn: boolean | null;
+  device_type: string | null;
+  address_match: boolean | null;
+  cvv_match: boolean | null;
+  avs_result: string | null;
+  card_present: boolean | null;
+  entry_mode: string | null;
+}
+
+// ── API functions ─────────────────────────────────────────────────────────────
+
+/** Scan all transactions or a specific list for fraud */
+export async function scanFraud(transactionIds?: string[]): Promise<FraudScanResponse> {
+  const res = await fetch(`${BACKEND_URL}/api/fraud/scan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(transactionIds ? { transaction_ids: transactionIds } : {}),
+  });
+  if (!res.ok) throw new Error(`Fraud scan failed: ${res.status}`);
+  return res.json();
+}
+
+/** Fetch all transactions from the database */
+export async function fetchTransactions(): Promise<Transaction[]> {
+  const res = await fetch(`${BACKEND_URL}/api/transactions`);
+  if (!res.ok) throw new Error(`Failed to fetch transactions: ${res.status}`);
+  return res.json();
+}
+
+// ── Stubs for removed endpoints so old components don't crash ─────────────────
 
 export interface SanctionsResult {
   uploaded_name: string;
@@ -51,36 +113,14 @@ export interface GeoRiskResponse {
   results: GeoRiskResult[];
 }
 
-// ── API functions ─────────────────────────────────────────────────────────────
-
 export async function scanSanctions(file: File): Promise<SanctionsResponse> {
-  const form = new FormData();
-  form.append("file", file);
-  const res = await fetch(`${BACKEND_URL}/api/sanctions`, {
-    method: "POST",
-    body: form,
-  });
-  if (!res.ok) throw new Error(`Sanctions scan failed: ${res.status}`);
-  return res.json();
+  return { scan_id: "stub", total_entities: 0, flagged: 0, results: [] };
 }
 
 export async function scanAnomalies(file: File): Promise<AnomaliesResponse> {
-  const form = new FormData();
-  form.append("file", file);
-  const res = await fetch(`${BACKEND_URL}/api/anomalies`, {
-    method: "POST",
-    body: form,
-  });
-  if (!res.ok) throw new Error(`Anomaly scan failed: ${res.status}`);
-  return res.json();
+  return { scan_id: "stub", total_transactions: 0, flagged: 0, results: [] };
 }
 
 export async function analyzeGeoRisk(countries: string[]): Promise<GeoRiskResponse> {
-  const res = await fetch(`${BACKEND_URL}/api/georisk`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ countries }),
-  });
-  if (!res.ok) throw new Error(`Geo risk analysis failed: ${res.status}`);
-  return res.json();
+  return { results: [] };
 }
