@@ -34,6 +34,13 @@ async fn main() {
 
     tracing::info!("Connected to database");
 
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("Failed to run database migrations");
+
+    tracing::info!("Migrations applied");
+
     let state = AppState { db: pool };
     let cors = CorsLayer::new()
         .allow_origin(Any)
