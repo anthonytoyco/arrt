@@ -43,6 +43,48 @@ pub struct ScanResponse {
     pub results: Vec<FraudResult>,
 }
 
+// ── Benford's Law ─────────────────────────────────────────────────────────────
+
+#[derive(Serialize)]
+pub struct DigitAnalysis {
+    pub digit: u8,
+    pub expected_pct: f64,
+    pub observed_pct: f64,
+    pub deviation: f64,
+    pub flagged: bool,
+}
+
+#[derive(Serialize)]
+pub struct BenfordResponse {
+    pub sufficient_data: bool,
+    pub total_transactions: usize,
+    pub chi_square: Option<f64>,
+    pub is_suspicious: Option<bool>,
+    pub digit_analysis: Vec<DigitAnalysis>,
+    pub flagged_digits: Vec<u8>,
+    pub ai_explanation: Option<String>,
+}
+
+// ── Duplicate Invoice Detection ───────────────────────────────────────────────
+
+#[derive(Serialize)]
+pub struct DuplicateGroup {
+    pub r#type: String,
+    pub customer_id: Option<String>,
+    pub amount: Option<f64>,
+    pub date: Option<String>,
+    pub order_id: Option<String>,
+    pub transaction_ids: Vec<String>,
+    pub count: usize,
+}
+
+#[derive(Serialize)]
+pub struct DuplicatesResponse {
+    pub total_duplicate_groups: usize,
+    pub duplicate_groups: Vec<DuplicateGroup>,
+    pub ai_explanation: Option<String>,
+}
+
 #[derive(Deserialize)]
 pub struct FraudReportRequest {
     pub transaction_id: String,
