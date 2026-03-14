@@ -1,6 +1,7 @@
 use axum::{routing::{get, post}, Router};
 use sqlx::postgres::PgPoolOptions;
 use std::net::SocketAddr;
+use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod models;
@@ -34,11 +35,18 @@ async fn main() {
     tracing::info!("Connected to database");
 
     let state = AppState { db: pool };
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
 
     let app = Router::new()
         .route("/", get(root))
+        .route("/health", get(health))
+        .route("/api/transactions", get(routes::transactions::list))
         .route("/api/fraud/scan", post(routes::fraud::scan))
-        .with_state(state);
+        .with_state(state)
+        .layer(cors);
 
     let port: u16 = std::env::var("PORT")
         .unwrap_or_else(|_| "3001".to_string())
@@ -54,4 +62,8 @@ async fn main() {
 
 async fn root() -> &'static str {
     "Hello, World!"
+}
+
+async fn health() -> &'static str {
+    "ok"
 }

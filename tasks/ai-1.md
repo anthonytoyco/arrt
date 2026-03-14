@@ -1,19 +1,33 @@
 # AI Person 1 — Fraud Rules Engine + Anomaly Detection
 
 ## Your job
-Build `src/services/fraud_rules.rs` — the scoring logic that Backend Person 2 calls.
+
+Build `src/services/fraud_rules.rs` — the scoring logic called from `routes/fraud.rs`.
 Optionally add an Isolation Forest anomaly score on top via a Python sidecar.
 
 ---
 
 ## Step 1 — Create `src/services/fraud_rules.rs`
 
-This function takes a `Transaction` and returns `(score: u32, triggered_rules: Vec<String>)`.
+This module has a stub `Transaction` struct (used before `models::transaction::Transaction` is available), a `score()` function, and a `risk_level()` helper.
 
 ```rust
-use crate::models::transaction::Transaction;
+// Stub transaction — replaced with models::transaction::Transaction once Backend 1 is done.
+// When swapping: delete this struct, change the import in routes/fraud.rs, nothing else changes.
+pub struct Transaction {
+    pub transaction_id: String,
+    pub customer_name: Option<String>,
+    pub amount: Option<f64>,
+    pub cvv_match: Option<bool>,
+    pub avs_result: Option<String>,
+    pub address_match: Option<bool>,
+    pub ip_is_vpn: Option<bool>,
+    pub card_present: Option<bool>,
+    pub entry_mode: Option<String>,
+    pub refund_status: Option<String>,
+}
 
-pub fn score_transaction(tx: &Transaction) -> (u32, Vec<String>) {
+pub fn score(tx: &Transaction) -> (u32, Vec<String>) {
     let mut score: u32 = 0;
     let mut rules: Vec<String> = Vec::new();
 
@@ -59,7 +73,7 @@ pub fn score_transaction(tx: &Transaction) -> (u32, Vec<String>) {
         }
     }
 
-    // --- High Amount Threshold (tune to your data) ---
+    // --- High Amount Threshold ---
     if let Some(amt) = tx.amount {
         if amt > 5000.0 {
             score += 15;
@@ -69,16 +83,36 @@ pub fn score_transaction(tx: &Transaction) -> (u32, Vec<String>) {
 
     (score, rules)
 }
+
+pub fn risk_level(score: u32) -> &'static str {
+    match score {
+        s if s >= 60 => "HIGH",
+        s if s >= 30 => "MEDIUM",
+        _ => "LOW",
+    }
+}
+```
+
+> Note: The scoring logic is also inlined directly in `routes/fraud.rs` for the scan endpoint. The `fraud_rules::risk_level()` helper is what the route calls to classify results.
+
+---
+
+## Step 2 — Create `src/services/mod.rs`
+
+```rust
+pub mod fraud_rules;
+pub mod gemini;
 ```
 
 ---
 
-## Step 2 (Stretch) — Python Isolation Forest Sidecar
+## Step 3 (Stretch) — Python Isolation Forest Sidecar
 
 If you want anomaly scores on top of the rule scores, build a tiny Python sidecar. Create `ml-sidecar/` at the repo root.
 
 ### `ml-sidecar/requirements.txt`
-```
+
+```text
 fastapi
 uvicorn
 scikit-learn
@@ -86,6 +120,7 @@ pandas
 ```
 
 ### `ml-sidecar/main.py`
+
 ```python
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -108,6 +143,7 @@ def score(req: ScoreRequest):
 ```
 
 ### `ml-sidecar/model.py`
+
 ```python
 import pandas as pd
 from sklearn.ensemble import IsolationForest
@@ -133,6 +169,7 @@ def score_transactions(transactions: list[dict]) -> list[dict]:
 ```
 
 ### Run it
+
 ```bash
 cd ml-sidecar
 pip install -r requirements.txt
@@ -155,7 +192,8 @@ Anomaly score can be added to the rule score: `final_score = rule_score + (anoma
 
 ## Done when
 
-- `score_transaction(&tx)` returns correct scores for test cases
+- `score(&tx)` returns correct scores for test cases
+- `risk_level(score)` returns `"HIGH"` / `"MEDIUM"` / `"LOW"` correctly
 - (Stretch) `POST http://localhost:8000/score` returns anomaly scores for a batch
 
 Hand the anomaly score format to Backend Person 2 so they can merge it into `FraudResult`.

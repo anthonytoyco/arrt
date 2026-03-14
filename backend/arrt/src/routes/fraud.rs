@@ -1,6 +1,7 @@
 use axum::{extract::State, Json};
 
 use crate::models::fraud::{FraudResult, ScanRequest, ScanResponse, Transaction};
+use crate::services::{fraud_rules, gemini};
 use crate::state::AppState;
 
 fn score_transaction(tx: &Transaction) -> (u32, Vec<String>) {
@@ -74,7 +75,6 @@ pub async fn scan(
             .unwrap_or_default()
     };
 
-    let total_scanned = transactions.len();
     let total_scanned = transactions.len();
     let mut results: Vec<FraudResult> = Vec::new();
 
