@@ -7,6 +7,14 @@ Optionally add an Isolation Forest anomaly score on top via a Python sidecar.
 
 ---
 
+## Status (completed)
+
+- **Step 1 & 2:** `backend/arrt/src/services/fraud_rules.rs` and `mod.rs` exist; scoring uses section comments (Identity/Card Verification, Network/Device, etc.).
+- **Route:** `routes/fraud.rs` calls `fraud_rules::score(&to_fraud_rules_tx(&tx))` and `fraud_rules::risk_level(risk_score)` — no inlined scoring. A small `to_fraud_rules_tx()` maps `models::fraud::Transaction` → `fraud_rules::Transaction`.
+- **Step 3 (stretch):** `ml-sidecar/` added with FastAPI, Isolation Forest, Python 3.9–compatible types (`Optional`/`List`), `model_dump()`, and `run.sh`. Use `python3 -m uvicorn main:app --port 8000` or `./run.sh` to run.
+
+---
+
 ## Step 1 — Create `src/services/fraud_rules.rs`
 
 This module has a stub `Transaction` struct (used before `models::transaction::Transaction` is available), a `score()` function, and a `risk_level()` helper.
@@ -93,7 +101,7 @@ pub fn risk_level(score: u32) -> &'static str {
 }
 ```
 
-> Note: The scoring logic is also inlined directly in `routes/fraud.rs` for the scan endpoint. The `fraud_rules::risk_level()` helper is what the route calls to classify results.
+> **Implemented:** The route uses `fraud_rules::score()` (via a `to_fraud_rules_tx()` conversion from `models::fraud::Transaction`) and `fraud_rules::risk_level()` for classification. When you switch to `models::transaction::Transaction`, delete the stub and use that type in the route; the conversion helper can be removed if the type matches.
 
 ---
 
@@ -108,7 +116,7 @@ pub mod gemini;
 
 ## Step 3 (Stretch) — Python Isolation Forest Sidecar
 
-If you want anomaly scores on top of the rule scores, build a tiny Python sidecar. Create `ml-sidecar/` at the repo root.
+If you want anomaly scores on top of the rule scores, build a tiny Python sidecar. Create `ml-sidecar/` at the repo root (`requirements.txt`, `main.py`, `model.py`, and optionally `run.sh`).
 
 ### `ml-sidecar/requirements.txt`
 
@@ -121,24 +129,36 @@ pandas
 
 ### `ml-sidecar/main.py`
 
+Uses `Optional`/`List` and `model_dump()` for **Python 3.9** compatibility (no `X | None` or `list[T]` in type hints).
+
 ```python
+from typing import List, Optional
+
 from fastapi import FastAPI
 from pydantic import BaseModel
+
 from model import score_transactions
 
 app = FastAPI()
 
+
 class Transaction(BaseModel):
     transaction_id: str
-    amount: float | None = None
-    # add more numeric fields as needed
+    amount: Optional[float] = None
+    customer_name: Optional[str] = None
+    cvv_match: Optional[bool] = None
+    address_match: Optional[bool] = None
+    ip_is_vpn: Optional[bool] = None
+    card_present: Optional[bool] = None
+
 
 class ScoreRequest(BaseModel):
-    transactions: list[Transaction]
+    transactions: List[Transaction]
+
 
 @app.post("/score")
 def score(req: ScoreRequest):
-    results = score_transactions([t.dict() for t in req.transactions])
+    results = score_transactions([t.model_dump() for t in req.transactions])
     return {"scores": results}
 ```
 
@@ -173,7 +193,26 @@ def score_transactions(transactions: list[dict]) -> list[dict]:
 ```bash
 cd ml-sidecar
 pip install -r requirements.txt
-uvicorn main:app --port 8000
+python3 -m uvicorn main:app --port 8000
+```
+
+Or use the helper script: `./run.sh` (uses `python -m uvicorn` so the `uvicorn` CLI does not need to be on PATH).
+
+### Test the sidecar
+
+- **Swagger UI:** http://localhost:8000/docs → try **POST /score**.
+- **curl:** Send at least 5 transactions so Isolation Forest runs; only numeric fields (e.g. `amount`) affect the anomaly score.
+
+```bash
+curl -X POST http://localhost:8000/score \
+  -H "Content-Type: application/json" \
+  -d '{"transactions": [
+    {"transaction_id": "tx-1", "amount": 100.50},
+    {"transaction_id": "tx-2", "amount": 9999.99},
+    {"transaction_id": "tx-3", "amount": 25.00},
+    {"transaction_id": "tx-4", "amount": 500.00},
+    {"transaction_id": "tx-5", "amount": 7500.00}
+  ]}'
 ```
 
 ---
