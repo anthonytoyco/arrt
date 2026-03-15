@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::models::risk::SanctionsHit;
 use crate::models::sanctions::{SanctionsScanResponse, SanctionsScanResult};
-use crate::services::open_sanctions;
+use crate::services::{llm, open_sanctions};
 use crate::state::AppState;
 
 /// POST /api/sanctions/scan
@@ -88,34 +88,52 @@ pub async fn scan(
         total_entities += 1;
         let hits: Vec<SanctionsHit> =
             open_sanctions::search(&state.http, &query).await;
+
+        // Ask the LLM to assess risk and explain — covers both no-match cases
+        // (where known bad actors may still be identified by name) and hit cases.
+        let (llm_risk, ai_explanation) = llm::explain_sanctions_entity(&name, &hits)
+            .await
+            .unwrap_or_else(|_| ("LOW".to_string(), String::new()));
+
         if hits.is_empty() {
+            let action = if llm_risk == "LOW" {
+                "No match — clear".to_string()
+            } else {
+                "Review — flagged by AI despite no database match".to_string()
+            };
             results.push(SanctionsScanResult {
                 uploaded_name: name.clone(),
                 matched_name: String::new(),
                 confidence: 0,
-                risk_level: "LOW".to_string(),
+                risk_level: llm_risk,
                 sanctions_list: String::new(),
                 reason: String::new(),
-                ai_explanation: String::new(),
-                action: "No match — clear".to_string(),
+                ai_explanation,
+                action,
             });
         } else {
-            for hit in hits {
-                let risk_level = if hit.score >= 0.9 {
+            for hit in &hits {
+                let db_risk = if hit.score >= 0.9 {
                     "HIGH"
                 } else if hit.score >= 0.7 {
                     "MEDIUM"
                 } else {
                     "LOW"
                 };
+                // Use whichever risk level is higher between DB score and LLM assessment
+                let effective_risk = match (db_risk, llm_risk.as_str()) {
+                    ("HIGH", _) | (_, "HIGH") => "HIGH",
+                    ("MEDIUM", _) | (_, "MEDIUM") => "MEDIUM",
+                    _ => "LOW",
+                };
                 results.push(SanctionsScanResult {
                     uploaded_name: name.clone(),
                     matched_name: hit.name.clone(),
                     confidence: (hit.score * 100.0).round() as u32,
-                    risk_level: risk_level.to_string(),
+                    risk_level: effective_risk.to_string(),
                     sanctions_list: hit.topics.join(", "),
                     reason: format!("Score {:.2}", hit.score),
-                    ai_explanation: String::new(),
+                    ai_explanation: ai_explanation.clone(),
                     action: "Review match".to_string(),
                 });
             }

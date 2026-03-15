@@ -181,6 +181,87 @@ fn build_risk_prompt(
     )
 }
 
+/// Given an entity name and any OpenSanctions hits, ask the LLM to assess risk
+/// and write a short explanation. Returns (risk_level, ai_explanation).
+pub async fn explain_sanctions_entity(
+    entity_name: &str,
+    hits: &[crate::models::risk::SanctionsHit],
+) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync>> {
+    let client = Client::new();
+
+    let hits_text = if hits.is_empty() {
+        "No direct sanctions matches were found in the database.".to_string()
+    } else {
+        hits.iter()
+            .map(|h| {
+                format!(
+                    "- {} (confidence: {:.0}%, topics: {})",
+                    h.name,
+                    h.score * 100.0,
+                    h.topics.join(", ")
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+
+    let prompt = format!(
+        "You are a sanctions compliance analyst. Assess the following entity:\n\
+        Entity name: \"{}\"\n\n\
+        SANCTIONS DATABASE MATCHES:\n{}\n\n\
+        Based on your knowledge of this entity AND the database matches above, \
+        return ONLY a valid JSON object with this exact structure:\n\
+        {{\n\
+          \"risk_level\": \"HIGH|MEDIUM|LOW\",\n\
+          \"ai_explanation\": \"1-2 sentence explanation of why this entity is or is not a sanctions concern\"\n\
+        }}\n\
+        No markdown. Return only the JSON.",
+        entity_name, hits_text
+    );
+
+    let resp = client
+        .post(format!("{}/chat/completions", OPENAI_BASE_URL))
+        .header("Authorization", "Bearer test")
+        .header("Content-Type", "application/json")
+        .json(&json!({
+            "model": MODEL,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a sanctions compliance analyst. Return only valid JSON."
+                },
+                { "role": "user", "content": prompt }
+            ],
+            "max_tokens": 300,
+            "temperature": 0.2
+        }))
+        .send()
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
+
+    let message = &resp["choices"][0]["message"];
+    let text = message["content"]
+        .as_str()
+        .or_else(|| message["reasoning"].as_str())
+        .unwrap_or("")
+        .trim();
+
+    let clean = normalize_json_payload(text);
+    let parsed: serde_json::Value = serde_json::from_str(&clean)?;
+
+    let risk_level = parsed["risk_level"]
+        .as_str()
+        .unwrap_or("LOW")
+        .to_string();
+    let ai_explanation = parsed["ai_explanation"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    Ok((risk_level, ai_explanation))
+}
+
 pub async fn analyze_business_risk(
     business_description: &str,
     sanctions_hits: &[SanctionsHit],
