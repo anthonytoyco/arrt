@@ -205,7 +205,7 @@ function LiquidBody({ score }: { score: number }) {
   const _q = useMemo(() => new THREE.Quaternion(), []);
   const _g = useMemo(() => new THREE.Vector3(), []);
 
-  useFrame((_, dt) => {
+  useFrame(({ camera }, dt) => {
     const g = grpRef.current;
     if (!g) return;
 
@@ -216,15 +216,17 @@ function LiquidBody({ score }: { score: number }) {
     smoothFill.current += (targetFill - smoothFill.current) * Math.min(1, dt * 3);
     sim.fillY = smoothFill.current;
 
-    // auto-rotate + organic wobble (drives gravity sloshing)
+    // auto-rotate + subtle wobble
     g.rotation.y += dt * 0.35;
     g.rotation.x = Math.sin(t * 0.47) * 0.04 + Math.sin(t * 0.71) * 0.02;
     g.rotation.z = Math.cos(t * 0.53) * 0.035 + Math.cos(t * 0.83) * 0.015;
 
-    // compute gravity direction in cube's local frame
+    // gravity = camera's "screen-down" direction, transformed to cube local frame
+    // this makes the liquid respond to manual orbit rotation (drag to tilt)
     g.updateWorldMatrix(true, false);
+    _g.set(0, -1, 0).applyQuaternion(camera.quaternion); // screen-down in world space
     _q.copy(g.quaternion).invert();
-    _g.set(0, -1, 0).applyQuaternion(_q);
+    _g.applyQuaternion(_q); // world → cube local
 
     // substep physics for stability
     let rem = Math.min(dt, 0.05);
@@ -272,7 +274,12 @@ export default function LiquidHexScene({ score }: { score: number }) {
       <pointLight position={[-4, 3, -2]} intensity={3}  color="#88aaff" />
       <pointLight position={[0, -3, 3]}  intensity={1.5} color="#ffffff" />
       <LiquidBody score={score} />
-      <OrbitControls enableZoom={false} enablePan={false} />
+      <OrbitControls
+        enableZoom={false}
+        enablePan={false}
+        minPolarAngle={0.4}
+        maxPolarAngle={1.75}
+      />
     </Canvas>
   );
 }
