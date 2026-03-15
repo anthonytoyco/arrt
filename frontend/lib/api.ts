@@ -144,11 +144,26 @@ export async function agentScan(
     card_present?: boolean | null;
     timestamp?: string | null;
   }>,
+  options?: {
+    /** Optional base64-encoded document (PDF/image) for VLM document fraud analysis. */
+    document_base64?: string | null;
+    /** MIME type of the document, e.g. application/pdf or image/jpeg. */
+    mime_type?: string | null;
+  },
 ): Promise<AgentScanReport> {
+  const body: {
+    transactions: typeof transactions;
+    document_base64?: string;
+    mime_type?: string;
+  } = { transactions };
+  if (options?.document_base64 && options?.mime_type) {
+    body.document_base64 = options.document_base64;
+    body.mime_type = options.mime_type;
+  }
   const res = await apiFetch(`${BACKEND_URL}/api/fraud/agent-scan`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ transactions }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));

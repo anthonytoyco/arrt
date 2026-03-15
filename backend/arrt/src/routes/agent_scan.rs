@@ -26,6 +26,12 @@ pub struct AgentScanTransaction {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AgentScanRequest {
     pub transactions: Vec<AgentScanTransaction>,
+    /// Optional base64-encoded document (PDF/image) for VLM document fraud analysis.
+    #[serde(default)]
+    pub document_base64: Option<String>,
+    /// MIME type of the document, e.g. application/pdf or image/jpeg.
+    #[serde(default)]
+    pub mime_type: Option<String>,
 }
 
 /// POST /api/fraud/agent-scan

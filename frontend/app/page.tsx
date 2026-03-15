@@ -203,6 +203,7 @@ export default function Dashboard() {
   const [fraudScanLoading, setFraudScanLoading] = useState(true);
   const [agentScanReport, setAgentScanReport] = useState<AgentScanReport | null>(null);
   const [agentScanLoading, setAgentScanLoading] = useState(false);
+  const [agentScanDocument, setAgentScanDocument] = useState<File | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -295,7 +296,22 @@ export default function Dashboard() {
         card_present: t.card_present,
         timestamp: t.timestamp,
       }));
-      const report = await agentScan(payload);
+      let docOptions: { document_base64?: string; mime_type?: string } | undefined;
+      if (agentScanDocument) {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => {
+            const dataUrl = r.result as string;
+            const b64 = dataUrl.split(",")[1];
+            resolve(b64 ?? "");
+          };
+          r.onerror = () => reject(new Error("Failed to read document"));
+          r.readAsDataURL(agentScanDocument);
+        });
+        const mime = agentScanDocument.type || "application/octet-stream";
+        docOptions = { document_base64: base64, mime_type: mime };
+      }
+      const report = await agentScan(payload, docOptions);
       setAgentScanReport(report);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Agent scan failed.");
@@ -1032,8 +1048,8 @@ export default function Dashboard() {
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
                 className={`flex items-center gap-3 px-4 py-2.5 text-xs tracking-wider transition-colors text-left border font-heading ${activeTab === item.id
-                    ? "bg-foreground text-background border-foreground"
-                    : "bg-transparent text-foreground border-border hover:border-foreground/40"
+                  ? "bg-foreground text-background border-foreground"
+                  : "bg-transparent text-foreground border-border hover:border-foreground/40"
                   }`}
               >
                 {item.icon}
@@ -1093,6 +1109,31 @@ export default function Dashboard() {
                 <p className="text-sm text-foreground/80">
                   Run the multi-agent pipeline (anomaly detection, Benford&apos;s Law, duplicate detection, graph analysis) on all transactions in the database.
                 </p>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Optional: attach a document (PDF/image) for VLM fraud analysis
+                  </label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      type="file"
+                      accept=".pdf,image/*"
+                      className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded file:border file:border-border file:bg-muted file:text-xs"
+                      onChange={(e) => setAgentScanDocument(e.target.files?.[0] ?? null)}
+                    />
+                    {agentScanDocument && (
+                      <span className="text-xs text-muted-foreground">
+                        {agentScanDocument.name}
+                        <button
+                          type="button"
+                          className="ml-1 text-destructive hover:underline"
+                          onClick={() => setAgentScanDocument(null)}
+                        >
+                          clear
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px] gap-4 items-start">
                   <div className="space-y-4">
                     <Button

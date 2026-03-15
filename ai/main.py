@@ -253,6 +253,15 @@ async def agent_scan(req: AgentScanRequest):
                     graph_flagged_ids=graph_flagged_ids,
                     graph_summary=graph_summary,
                 )
+                if req.document_base64 and req.mime_type:
+                    try:
+                        from invoice_fraud.document_tool import analyze_document_vlm
+                        doc_result = analyze_document_vlm(req.document_base64, req.mime_type)
+                        report.document_risk_level = doc_result.get("risk_level", "LOW")
+                        report.document_signals = doc_result.get("fraud_signals") or []
+                        report.document_summary = doc_result.get("summary")
+                    except Exception:
+                        pass
         else:
             # Synthesizer path: precomputed tool results (incl. graph) passed to LLM.
             prompt = (
@@ -299,6 +308,15 @@ async def agent_scan(req: AgentScanRequest):
                     graph_flagged_ids=graph_flagged_ids,
                     graph_summary=graph_summary,
                 )
+                if req.document_base64 and req.mime_type:
+                    try:
+                        from invoice_fraud.document_tool import analyze_document_vlm
+                        doc_result = analyze_document_vlm(req.document_base64, req.mime_type)
+                        report.document_risk_level = doc_result.get("risk_level", "LOW")
+                        report.document_signals = doc_result.get("fraud_signals") or []
+                        report.document_summary = doc_result.get("summary")
+                    except Exception:
+                        pass
 
         # Override tool-derived fields so they always match actual tool output.
         report.anomalous_transaction_ids = anomalous_ids

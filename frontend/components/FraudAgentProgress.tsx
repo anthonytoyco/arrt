@@ -45,13 +45,13 @@ function getAgentOutcome(id: string, report: AgentScanReport): string | null {
         ? `${report.duplicate_groups_count} group(s)`
         : "0 groups";
     case "document":
-      return report.document_risk_level ?? "Skipped";
+      return report.document_risk_level ?? "No document";
     case "graph": {
       const n = report.graph_flagged_ids?.length ?? 0;
       return n > 0 ? `${n} flagged` : "0 flagged";
     }
     case "reviewer":
-      return report.review_notes ? "Note added" : "Skipped (disabled)";
+      return report.review_notes ? "Note added" : "No note";
     case "coordinator":
       return report.risk_level;
     default:
@@ -65,7 +65,7 @@ function getAgentOutcomeHint(id: string, report: AgentScanReport): string | null
     case "document":
       return report.document_risk_level
         ? null
-        : "No document was uploaded with this run. Upload a PDF/image in the AI fraud flow to run document (VLM) analysis.";
+        : "Upload a PDF or image above and run analysis to enable document (VLM) fraud analysis.";
     case "graph":
       if (report.graph_summary?.toLowerCase().includes("networkx not installed"))
         return "Install networkx in the AI environment: pip install networkx (see ai/requirements.txt).";
@@ -73,7 +73,7 @@ function getAgentOutcomeHint(id: string, report: AgentScanReport): string | null
     case "reviewer":
       return report.review_notes
         ? null
-        : "FraudReviewer is disabled. Set FRAUD_REVIEWER_ENABLED=true in the AI service .env (e.g. ai/.env) and restart the AI service to enable.";
+        : "Set FRAUD_REVIEWER_ENABLED=true in ai/.env and restart the AI service to get second-pass review notes.";
     default:
       return null;
   }
