@@ -624,7 +624,7 @@ export default function Dashboard() {
             <PDFExport sanctionsData={sanctionsData} anomaliesData={anomaliesData} geoRiskData={geoRiskData} />
           )}
           <div className="relative group">
-            <button className="px-4 py-1.5 text-[10px]  tracking-wider border border-foreground/20 text-foreground hover:bg-foreground hover:text-background transition-colors">
+            <button className="px-4 py-1.5 text-[10px] tracking-wider border border-border hover:border-foreground/40 text-foreground transition-colors font-medium">
               welcome back, Radiohead
             </button>
           </div>
