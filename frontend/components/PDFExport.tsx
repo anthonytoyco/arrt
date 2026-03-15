@@ -1,13 +1,14 @@
 "use client";
 
-import type { SanctionsResponse, AnomaliesResponse } from "@/lib/api";
+import type { SanctionsResponse, AnomaliesResponse, GeoRiskResponse } from "@/lib/api";
 
 interface Props {
   sanctionsData: SanctionsResponse | null;
   anomaliesData: AnomaliesResponse | null;
+  geoRiskData: GeoRiskResponse | null;
 }
 
-export function PDFExport({ sanctionsData, anomaliesData }: Props) {
+export function PDFExport({ sanctionsData, anomaliesData, geoRiskData }: Props) {
   function handleExport() {
     const lines: string[] = [
       "yosemite — Compliance Report",
@@ -36,6 +37,15 @@ export function PDFExport({ sanctionsData, anomaliesData }: Props) {
         lines.push(`\n  ${r.date}  ${r.vendor}  $${r.amount.toLocaleString()}`);
         lines.push(`  Risk: ${r.risk_level}  |  Score: ${(r.anomaly_score * 100).toFixed(0)}%`);
         lines.push(`  Reasons: ${r.reasons.join("; ")}`);
+      }
+      lines.push("");
+    }
+
+    if (geoRiskData) {
+      lines.push("── GEOPOLITICAL RISK ─────────────────────────────────");
+      for (const r of geoRiskData.results) {
+        lines.push(`\n  ${r.country} — ${r.risk_level} (score ${r.risk_score}/100)`);
+        lines.push(`  Conflict events (90d): ${r.conflict_events_90d}  |  Fatalities: ${r.fatalities_90d}`);
       }
       lines.push("");
     }
