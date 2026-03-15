@@ -145,7 +145,7 @@ export async function agentScan(
     timestamp?: string | null;
   }>,
 ): Promise<AgentScanReport> {
-  const res = await fetch(`${BACKEND_URL}/api/fraud/agent-scan`, {
+  const res = await apiFetch(`${BACKEND_URL}/api/fraud/agent-scan`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ transactions }),
