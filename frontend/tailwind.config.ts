@@ -58,10 +58,11 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       boxShadow: {
-        '3d-pop': '6px 6px 12px rgba(0, 0, 0, 0.1), -6px -6px 12px rgba(255, 255, 255, 0.9), inset 0px 0px 0px transparent, inset 0px 0px 0px transparent',
-        '3d-pop-hover': '8px 8px 16px rgba(0, 0, 0, 0.15), -8px -8px 16px rgba(255, 255, 255, 1), inset 0px 0px 0px transparent, inset 0px 0px 0px transparent',
-        '3d-pressed': 'inset 6px 6px 10px rgba(0,0,0,0.1), inset -6px -6px 10px rgba(255,255,255,0.9)',
-        'card-soft': '10px 10px 20px rgba(0, 0, 0, 0.05), -10px -10px 20px rgba(255, 255, 255, 0.8)',
+        'window': '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)',
+        'window-focused': '0 16px 48px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.1)',
+        'wheel-hub': '0 4px 24px rgba(0,0,0,0.25)',
+        'wheel-icon': '0 2px 8px rgba(0,0,0,0.12)',
+        'card-soft': '0 2px 12px rgba(0,0,0,0.06)',
       },
 
     },

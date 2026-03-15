@@ -4,10 +4,10 @@
 
 @layer base {
   :root {
-    --background: 210 20% 96%; /* A very light, soft grayish blue */
-    --foreground: 220 15% 30%;
-    --card: 210 20% 96%; /* Match background for base neumorphism */
-    --card-foreground: 220 15% 30%;
+    --background: 0 0% 100%; /* Pure white OS canvas */
+    --foreground: 220 15% 15%;
+    --card: 0 0% 99%;
+    --card-foreground: 220 15% 15%;
     --popover: 210 20% 96%;
     --popover-foreground: 220 15% 30%;
     --primary: 221 83% 53%; /* Soft blue */
