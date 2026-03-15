@@ -1,6 +1,6 @@
-use crate::models::fraud::Transaction;
+use crate::models::fraud::ScoringTx;
 
-pub fn score(tx: &Transaction) -> (u32, Vec<String>) {
+pub fn score(tx: &ScoringTx) -> (u32, Vec<String>) {
     let mut score: u32 = 0;
     let mut rules: Vec<String> = Vec::new();
 
@@ -97,10 +97,10 @@ pub fn risk_level(score: u32) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::{risk_level, score};
-    use crate::models::fraud::Transaction;
+    use crate::models::fraud::ScoringTx;
 
-    fn tx(overrides: impl FnOnce(&mut Transaction)) -> Transaction {
-        let mut t = Transaction {
+    fn tx(overrides: impl FnOnce(&mut ScoringTx)) -> ScoringTx {
+        let mut t = ScoringTx {
             transaction_id: "tx-1".to_string(),
             customer_name: None,
             amount: None,

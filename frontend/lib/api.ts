@@ -167,6 +167,9 @@ export type PipelineOutcome =
 
 export interface PipelineResult {
   transaction_id: string;
+  customer_name: string | null;
+  amount: number | null;
+  timestamp: string | null;
   risk_score: number;
   outcome: PipelineOutcome;
   triggered_rules: string[];
@@ -229,6 +232,9 @@ export interface SanctionsResult {
   reason: string;
   ai_explanation: string;
   action: string;
+  geo_risk_score: number | null;
+  geo_risk_level: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | null;
+  geo_briefing: string | null;
 }
 
 export interface SanctionsResponse {
@@ -254,19 +260,6 @@ export interface AnomaliesResponse {
   total_transactions: number;
   flagged: number;
   results: AnomalyResult[];
-}
-
-export interface GeoRiskResult {
-  country: string;
-  risk_score: number;
-  risk_level: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
-  conflict_events_90d: number;
-  fatalities_90d: number;
-  ai_briefing: string;
-}
-
-export interface GeoRiskResponse {
-  results: GeoRiskResult[];
 }
 
 export async function scanSanctions(file: File): Promise<SanctionsResponse> {
@@ -295,9 +288,9 @@ export async function scanAnomalies(file: File): Promise<AnomaliesResponse> {
 
   const mapped: AnomalyResult[] = pipeline.results.map((r, i) => ({
     row_index: i,
-    date: new Date().toISOString().split("T")[0],
-    vendor: r.transaction_id,
-    amount: 0,
+    date: r.timestamp ?? new Date().toISOString().split("T")[0],
+    vendor: r.customer_name ?? r.transaction_id,
+    amount: r.amount ?? 0,
     anomaly_score: r.risk_score / 100,
     risk_level:
       r.risk_score >= 70 ? "HIGH" : r.risk_score >= 40 ? "MEDIUM" : "LOW",
@@ -313,14 +306,3 @@ export async function scanAnomalies(file: File): Promise<AnomaliesResponse> {
   };
 }
 
-export async function analyzeGeoRisk(
-  countries: string[],
-): Promise<GeoRiskResponse> {
-  const res = await fetch(`${BACKEND_URL}/api/fraud/georisk`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ countries }),
-  });
-  if (!res.ok) throw new Error(`Geo risk analysis failed: ${res.status}`);
-  return res.json();
-}

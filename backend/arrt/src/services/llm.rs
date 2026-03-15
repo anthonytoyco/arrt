@@ -1,9 +1,8 @@
-use reqwest::Client;
+use reqwest::Client; // kept for parameter types
 use serde_json::json;
 
-use crate::models::fraud::FraudReportSummaryContent;
+use crate::models::fraud::{FraudReportSummaryContent, GeoRiskResult};
 use crate::models::risk::{BusinessRiskReport, ConflictEvent, SanctionsHit};
-use crate::models::fraud::{GeoRiskResult, SanctionsResult};
 
 const MODEL: &str = "openai/gpt-oss-120b";
 
@@ -17,11 +16,11 @@ fn hf_api_key() -> String {
 }
 
 pub async fn explain_fraud(
+    client: &Client,
     triggered_rules: &[String],
     transaction_id: &str,
     risk_score: u32,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-    let client = Client::new();
     let rules_text = triggered_rules.join(", ");
     let prompt = build_prompt(transaction_id, risk_score, &rules_text);
 
@@ -60,9 +59,9 @@ pub async fn explain_fraud(
 }
 
 pub async fn summarize_fraud_reports(
+    client: &Client,
     report_context: &str,
 ) -> Result<FraudReportSummaryContent, Box<dyn std::error::Error + Send + Sync>> {
-    let client = Client::new();
     let prompt = build_report_summary_prompt(report_context);
 
     let resp = client
@@ -101,69 +100,10 @@ pub async fn summarize_fraud_reports(
     Ok(summary)
 }
 
-pub async fn screen_entities(
-    names: &[String],
-) -> Result<Vec<SanctionsResult>, Box<dyn std::error::Error + Send + Sync>> {
-    let client = Client::new();
-    let names_list = names
-        .iter()
-        .enumerate()
-        .map(|(i, n)| format!("{}. {}", i + 1, n))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    let prompt = format!(
-        "You are an AML compliance analyst. Screen the following entities against known sanctions \
-        patterns and lists (OFAC SDN, EU Consolidated, UN, FATF High-Risk).\n\n\
-        Entities to screen:\n{}\n\n\
-        Return a JSON array with one object per entity in order:\n\
-        [\n  {{\n    \
-          \"uploaded_name\": \"<original name>\",\n    \
-          \"matched_name\": \"<closest match or same if none>\",\n    \
-          \"confidence\": <0.0-1.0>,\n    \
-          \"risk_level\": \"HIGH|MEDIUM|LOW\",\n    \
-          \"sanctions_list\": \"<OFAC SDN|EU Consolidated|UN|FATF High-Risk|None>\",\n    \
-          \"reason\": \"<brief reason or 'No match found'>\",\n    \
-          \"ai_explanation\": \"<1-2 sentence professional explanation>\",\n    \
-          \"action\": \"<Block|Enhanced Due Diligence|Clear>\"\n  \
-        }}\n]\nReturn only the JSON array. No markdown.",
-        names_list
-    );
-
-    let resp = client
-        .post(format!("{}/chat/completions", hf_base_url()))
-        .header("Authorization", format!("Bearer {}", hf_api_key()))
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({
-            "model": MODEL,
-            "messages": [
-                { "role": "system", "content": "You are an AML compliance analyst. Return only valid JSON arrays, no markdown." },
-                { "role": "user", "content": prompt }
-            ],
-            "max_tokens": 1200,
-            "temperature": 0.1
-        }))
-        .send()
-        .await?
-        .json::<serde_json::Value>()
-        .await?;
-
-    let message = &resp["choices"][0]["message"];
-    let text = message["content"]
-        .as_str()
-        .or_else(|| message["reasoning"].as_str())
-        .unwrap_or("[]")
-        .trim();
-
-    let normalized = normalize_json_payload(text);
-    let results = serde_json::from_str::<Vec<SanctionsResult>>(&normalized)?;
-    Ok(results)
-}
-
 pub async fn analyze_geo_risk(
+    client: &Client,
     countries: &[String],
 ) -> Result<Vec<GeoRiskResult>, Box<dyn std::error::Error + Send + Sync>> {
-    let client = Client::new();
     let countries_list = countries.join(", ");
 
     let prompt = format!(
@@ -303,10 +243,10 @@ fn build_risk_prompt(
 /// Given an entity name and any OpenSanctions hits, ask the LLM to assess risk
 /// and write a short explanation. Returns (risk_level, ai_explanation).
 pub async fn explain_sanctions_entity(
+    client: &Client,
     entity_name: &str,
     hits: &[crate::models::risk::SanctionsHit],
 ) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync>> {
-    let client = Client::new();
 
     let hits_text = if hits.is_empty() {
         "No direct sanctions matches were found in the database.".to_string()
@@ -381,12 +321,168 @@ pub async fn explain_sanctions_entity(
     Ok((risk_level, ai_explanation))
 }
 
+/// Given a composite entity risk profile, generate an executive AI summary
+/// and a concrete recommended action. Returns (ai_summary, recommended_action).
+pub async fn summarize_entity(
+    client: &Client,
+    entity_name: &str,
+    composite_score: u32,
+    composite_level: &str,
+    fraud_rules: &[String],
+    sanctions_match: Option<&str>,
+    sanctions_list: Option<&str>,
+    geo_country: Option<&str>,
+    geo_level: Option<&str>,
+) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync>> {
+    let fraud_text = if fraud_rules.is_empty() {
+        "No fraud signals detected.".to_string()
+    } else {
+        format!("Fraud signals: {}.", fraud_rules.join(", "))
+    };
+
+    let sanctions_text = match sanctions_match {
+        Some(name) => format!(
+            "Sanctions match: '{}' on {} list.",
+            name,
+            sanctions_list.unwrap_or("unknown")
+        ),
+        None => "No sanctions database matches found.".to_string(),
+    };
+
+    let geo_text = match (geo_country, geo_level) {
+        (Some(c), Some(l)) => format!("Primary operating country: {} — geopolitical risk: {}.", c, l),
+        _ => "No country data available.".to_string(),
+    };
+
+    let prompt = format!(
+        "You are a compliance analyst. Produce a concise risk verdict for the following entity.\n\n\
+        Entity: \"{}\"\n\
+        Composite risk score: {}/100 ({})\n\
+        {}\n{}\n{}\n\n\
+        Return ONLY a valid JSON object with exactly these two keys:\n\
+        {{\n\
+          \"ai_summary\": \"<2-3 sentence executive summary of why this entity is risky>\",\n\
+          \"recommended_action\": \"<one concrete compliance action to take, e.g. suspend account, file SAR>\"\n\
+        }}\n\
+        No markdown. Return only the JSON.",
+        entity_name, composite_score, composite_level,
+        fraud_text, sanctions_text, geo_text
+    );
+
+    let resp = client
+        .post(format!("{}/chat/completions", hf_base_url()))
+        .header("Authorization", format!("Bearer {}", hf_api_key()))
+        .header("Content-Type", "application/json")
+        .json(&json!({
+            "model": MODEL,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a compliance analyst. Return only valid JSON."
+                },
+                { "role": "user", "content": prompt }
+            ],
+            "max_tokens": 400,
+            "temperature": 0.2
+        }))
+        .send()
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
+
+    let message = &resp["choices"][0]["message"];
+    let text = message["content"]
+        .as_str()
+        .or_else(|| message["reasoning"].as_str())
+        .unwrap_or("{}")
+        .trim();
+
+    let clean = normalize_json_payload(text);
+    let parsed: serde_json::Value = serde_json::from_str(&clean)?;
+
+    let ai_summary = parsed["ai_summary"]
+        .as_str()
+        .unwrap_or("Risk assessment unavailable.")
+        .to_string();
+    let recommended_action = parsed["recommended_action"]
+        .as_str()
+        .unwrap_or("Review this entity with your compliance team.")
+        .to_string();
+
+    Ok((ai_summary, recommended_action))
+}
+
+/// Answer a user question with full context of current scan results.
+/// Returns the AI response string.
+pub async fn chat_with_context(
+    client: &Client,
+    message: &str,
+    fraud_context: Option<&str>,
+    sanctions_context: Option<&str>,
+    geo_context: Option<&str>,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    let fraud_section = fraud_context
+        .map(|s| format!("FRAUD SCAN RESULTS:\n{}", s))
+        .unwrap_or_else(|| "FRAUD SCAN RESULTS: No fraud scan data available.".to_string());
+
+    let sanctions_section = sanctions_context
+        .map(|s| format!("SANCTIONS SCREENING RESULTS:\n{}", s))
+        .unwrap_or_else(|| "SANCTIONS SCREENING RESULTS: No sanctions scan data available.".to_string());
+
+    let geo_section = geo_context
+        .map(|s| format!("GEOPOLITICAL RISK RESULTS:\n{}", s))
+        .unwrap_or_else(|| "GEOPOLITICAL RISK RESULTS: No geo-risk data available.".to_string());
+
+    let prompt = format!(
+        "You are ShieldAI, a compliance assistant. Answer the user's question using \
+        ONLY the data provided below. Be concise (2-4 sentences). Be specific — \
+        reference actual vendors, scores, and risk levels from the data. \
+        If the data does not contain enough information to answer, say so briefly.\n\n\
+        {}\n\n{}\n\n{}\n\n\
+        User question: {}",
+        fraud_section, sanctions_section, geo_section, message
+    );
+
+    let resp = client
+        .post(format!("{}/chat/completions", hf_base_url()))
+        .header("Authorization", format!("Bearer {}", hf_api_key()))
+        .header("Content-Type", "application/json")
+        .json(&json!({
+            "model": MODEL,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are ShieldAI, a compliance AI assistant. \
+                        Answer questions about the provided scan data concisely and professionally. \
+                        Never make up data not present in the context."
+                },
+                { "role": "user", "content": prompt }
+            ],
+            "max_tokens": 500,
+            "temperature": 0.3
+        }))
+        .send()
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
+
+    let message_val = &resp["choices"][0]["message"];
+    let text = message_val["content"]
+        .as_str()
+        .or_else(|| message_val["reasoning"].as_str())
+        .unwrap_or("I could not generate a response. Please try again.")
+        .trim()
+        .to_string();
+
+    Ok(text)
+}
+
 pub async fn analyze_business_risk(
+    client: &Client,
     business_description: &str,
     sanctions_hits: &[SanctionsHit],
     conflict_events: &[ConflictEvent],
 ) -> Result<BusinessRiskReport, Box<dyn std::error::Error + Send + Sync>> {
-    let client = Client::new();
     let prompt = build_risk_prompt(business_description, sanctions_hits, conflict_events);
 
     let resp = client

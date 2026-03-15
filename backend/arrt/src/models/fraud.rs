@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
+/// Minimal projection of the `transactions` table used only for fraud scoring.
+/// Contains only the fields the scoring rules actually inspect.
 #[derive(FromRow)]
-pub struct Transaction {
+pub struct ScoringTx {
     pub transaction_id: String,
     pub customer_name: Option<String>,
     pub amount: Option<f64>,
@@ -18,12 +20,13 @@ pub struct Transaction {
 }
 
 /// Lightweight, fully-optional transaction struct used for AI-parsed input
-/// and CSV uploads. Converted to `Transaction` before scoring.
+/// and CSV uploads. Converted to `ScoringTx` before rule scoring.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TransactionInput {
     pub transaction_id: String,
     pub customer_name: Option<String>,
     pub amount: Option<f64>,
+    pub timestamp: Option<String>,
     pub cvv_match: Option<bool>,
     pub avs_result: Option<String>,
     pub address_match: Option<bool>,
@@ -35,9 +38,9 @@ pub struct TransactionInput {
     pub refund_status: Option<String>,
 }
 
-impl From<TransactionInput> for Transaction {
+impl From<TransactionInput> for ScoringTx {
     fn from(t: TransactionInput) -> Self {
-        Transaction {
+        ScoringTx {
             transaction_id: t.transaction_id,
             customer_name: t.customer_name,
             amount: t.amount,
@@ -172,28 +175,6 @@ pub struct FraudReportSummaryResponse {
     pub disclaimer: String,
 }
 
-// ── Sanctions Screening ───────────────────────────────────────────────────────
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SanctionsResult {
-    pub uploaded_name: String,
-    pub matched_name: String,
-    pub confidence: f64,
-    pub risk_level: String, // "HIGH", "MEDIUM", "LOW"
-    pub sanctions_list: String,
-    pub reason: String,
-    pub ai_explanation: String,
-    pub action: String,
-}
-
-#[derive(Serialize)]
-pub struct SanctionsResponse {
-    pub scan_id: String,
-    pub total_entities: usize,
-    pub flagged: usize,
-    pub results: Vec<SanctionsResult>,
-}
-
 // ── Geopolitical Risk ─────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -211,6 +192,52 @@ pub struct GeoRiskResponse {
     pub results: Vec<GeoRiskResult>,
 }
 
+// ── Entity Investigation ──────────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+pub struct EntityInvestigateRequest {
+    pub entity_name: String,
+}
+
+#[derive(Serialize)]
+pub struct EntityFraudSummary {
+    pub transaction_count: usize,
+    pub flagged_count: usize,
+    pub highest_risk_score: u32,
+    pub risk_level: String,
+    pub top_triggered_rules: Vec<String>,
+}
+
+#[derive(Serialize)]
+pub struct EntitySanctionsSummary {
+    pub match_found: bool,
+    pub matched_name: Option<String>,
+    pub confidence: Option<u32>,
+    pub sanctions_list: Option<String>,
+    pub reason: Option<String>,
+    pub risk_level: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct EntityGeoRisk {
+    pub country: Option<String>,
+    pub risk_score: Option<u32>,
+    pub risk_level: Option<String>,
+    pub ai_briefing: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct EntityInvestigationResponse {
+    pub entity_name: String,
+    pub composite_risk_score: u32,
+    pub composite_risk_level: String,
+    pub fraud: EntityFraudSummary,
+    pub sanctions: EntitySanctionsSummary,
+    pub geo_risk: EntityGeoRisk,
+    pub ai_summary: String,
+    pub recommended_action: String,
+}
+
 // ── Pipeline ──────────────────────────────────────────────────────────────────
 
 /// Outcome for a single transaction processed by the pipeline.
@@ -225,6 +252,9 @@ pub enum PipelineOutcome {
 #[derive(Debug, Serialize)]
 pub struct PipelineResult {
     pub transaction_id: String,
+    pub customer_name: Option<String>,
+    pub amount: Option<f64>,
+    pub timestamp: Option<String>,
     pub risk_score: u32,
     pub outcome: PipelineOutcome,
     pub triggered_rules: Vec<String>,

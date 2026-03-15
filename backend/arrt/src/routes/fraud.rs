@@ -1,6 +1,6 @@
 use axum::{extract::State, Json};
 
-use crate::models::fraud::{FraudResult, ScanRequest, ScanResponse, Transaction};
+use crate::models::fraud::{FraudResult, ScanRequest, ScanResponse, ScoringTx};
 use crate::services::{anomaly_service, fraud_rules, llm};
 use crate::state::AppState;
 
@@ -9,8 +9,8 @@ pub async fn scan(
     State(state): State<AppState>,
     Json(payload): Json<ScanRequest>,
 ) -> Json<ScanResponse> {
-    let transactions: Vec<Transaction> = if let Some(ids) = &payload.transaction_ids {
-        sqlx::query_as::<_, Transaction>(
+    let transactions: Vec<ScoringTx> = if let Some(ids) = &payload.transaction_ids {
+        sqlx::query_as::<_, ScoringTx>(
             "SELECT * FROM transactions WHERE transaction_id = ANY($1)",
         )
         .bind(ids)
@@ -18,7 +18,7 @@ pub async fn scan(
         .await
         .unwrap_or_default()
     } else {
-        sqlx::query_as::<_, Transaction>("SELECT * FROM transactions")
+        sqlx::query_as::<_, ScoringTx>("SELECT * FROM transactions")
             .fetch_all(&state.db)
             .await
             .unwrap_or_default()
@@ -36,7 +36,7 @@ pub async fn scan(
 
         let risk_level = fraud_rules::risk_level(risk_score).to_string();
 
-        let ai_explanation = llm::explain_fraud(&triggered_rules, &tx.transaction_id, risk_score)
+        let ai_explanation = llm::explain_fraud(&state.http, &triggered_rules, &tx.transaction_id, risk_score)
             .await
             .ok();
 
