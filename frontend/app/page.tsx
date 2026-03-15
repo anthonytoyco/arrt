@@ -648,7 +648,7 @@ export default function Dashboard() {
                 {/* Protection Score */}
                 <div className="bg-card p-8 flex justify-center">
                   {fraudScanLoading ? (
-                    <p className="text-xs text-muted-foreground animate-pulse font-mono">Scanning...</p>
+                    <p className="text-xs text-muted-foreground animate-pulse font-mono">Calculating...</p>
                   ) : (
                     <ProtectionScore score={protectionScore} />
                   )}
