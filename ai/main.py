@@ -1,7 +1,10 @@
 import json
+import logging
 import os
 import traceback
 from typing import List, Optional
+
+logger = logging.getLogger(__name__)
 
 import railtracks as rt
 from dotenv import load_dotenv
@@ -326,15 +329,9 @@ async def agent_scan(req: AgentScanRequest):
         report.graph_summary = graph_summary
 
         # Optional second-pass reviewer agent.
-        # #region agent log
         _rev_raw = os.environ.get("FRAUD_REVIEWER_ENABLED", "<unset>")
         _rev_condition = str(_rev_raw).lower() in ("true", "1", "yes")
-        try:
-            with open("/Users/ryanalumkal/Documents/GitHub/arrt/.cursor/debug.log", "a") as _f:
-                _f.write(json.dumps({"location": "main.py:reviewer_check", "message": "FRAUD_REVIEWER_ENABLED", "data": {"raw": repr(_rev_raw), "condition_true": _rev_condition}, "timestamp": __import__("time").time() * 1000}) + "\n")
-        except Exception:
-            pass
-        # #endregion
+        logger.debug("FRAUD_REVIEWER_ENABLED raw=%r condition=%s", _rev_raw, _rev_condition)
         if os.environ.get("FRAUD_REVIEWER_ENABLED", "").lower() in ("true", "1", "yes"):
             try:
                 from invoice_fraud.multi_agent import fraud_reviewer
@@ -345,23 +342,15 @@ async def agent_scan(req: AgentScanRequest):
                     f"Recommendations: {report.recommendations}"
                 )
                 review_result = await rt.call(fraud_reviewer, review_prompt)
-                # #region agent log
-                try:
-                    with open("/Users/ryanalumkal/Documents/GitHub/arrt/.cursor/debug.log", "a") as _f:
-                        _f.write(json.dumps({"location": "main.py:reviewer_after_call", "message": "review_result", "data": {"has_structured": review_result.structured is not None, "has_notes": bool(review_result.structured and getattr(review_result.structured, "review_notes", None))}, "timestamp": __import__("time").time() * 1000}) + "\n")
-                except Exception:
-                    pass
-                # #endregion
+                logger.debug(
+                    "reviewer result: has_structured=%s has_notes=%s",
+                    review_result.structured is not None,
+                    bool(review_result.structured and getattr(review_result.structured, "review_notes", None)),
+                )
                 if review_result.structured and review_result.structured.review_notes:
                     report.review_notes = review_result.structured.review_notes
             except Exception as e:
-                # #region agent log
-                try:
-                    with open("/Users/ryanalumkal/Documents/GitHub/arrt/.cursor/debug.log", "a") as _f:
-                        _f.write(json.dumps({"location": "main.py:reviewer_exception", "message": "reviewer_failed", "data": {"type": type(e).__name__, "msg": str(e)}, "timestamp": __import__("time").time() * 1000}) + "\n")
-                except Exception:
-                    pass
-                # #endregion
+                logger.warning("reviewer failed: %s: %s", type(e).__name__, e)
                 pass  # Don't fail the request if reviewer fails
 
         return report.model_dump()

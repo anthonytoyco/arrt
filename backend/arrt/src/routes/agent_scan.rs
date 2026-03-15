@@ -50,48 +50,12 @@ pub async fn scan(
         ai_base_url().trim_end_matches('/')
     );
 
-    // #region agent log
-    if let Ok(mut f) = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("/Users/ryanalumkal/Documents/GitHub/arrt/.cursor/debug.log")
-    {
-        use std::io::Write;
-        let ts = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_millis();
-        let _ = writeln!(
-            f,
-            r#"{{"location":"agent_scan.rs:scan","message":"request_received","data":{{"transaction_count":{},"hypothesisId":"H3"}},"timestamp":{}}}"#,
-            payload.transactions.len(),
-            ts
-        );
-    }
-    // #endregion
+    tracing::debug!(transaction_count = payload.transactions.len(), "agent_scan: request received");
 
     match state.http.post(&url).json(&payload).send().await {
         Ok(resp) => {
             let status = resp.status();
-            // #region agent log
-            if let Ok(mut f) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("/Users/ryanalumkal/Documents/GitHub/arrt/.cursor/debug.log")
-            {
-                use std::io::Write;
-                let ts = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis();
-                let _ = writeln!(
-                    f,
-                    r#"{{"location":"agent_scan.rs:sidecar_response","message":"sidecar_status","data":{{"status":{},"hypothesisId":"H3"}},"timestamp":{}}}"#,
-                    status.as_u16(),
-                    ts
-                );
-            }
-            // #endregion
+            tracing::debug!(status = status.as_u16(), "agent_scan: sidecar response");
             if !status.is_success() {
                 let body = resp.text().await.unwrap_or_else(|_| status.to_string());
                 return (
@@ -116,27 +80,7 @@ pub async fn scan(
             }
         }
         Err(e) => {
-            // #region agent log
-            if let Ok(mut f) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("/Users/ryanalumkal/Documents/GitHub/arrt/.cursor/debug.log")
-            {
-                use std::io::Write;
-                let ts = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis();
-                let detail = e.to_string();
-                let esc = detail.replace('\\', "\\\\").replace('"', "\\\"");
-                let _ = writeln!(
-                    f,
-                    r#"{{"location":"agent_scan.rs:sidecar_err","message":"sidecar_http_error","data":{{"detail":"{}","hypothesisId":"H3"}},"timestamp":{}}}"#,
-                    esc,
-                    ts
-                );
-            }
-            // #endregion
+            tracing::error!(error = %e, "agent_scan: sidecar HTTP error");
             (
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(serde_json::json!({
