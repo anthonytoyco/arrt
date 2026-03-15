@@ -27,14 +27,14 @@ export function ProtectionScore({ score }: Props) {
       </p>
 
       {/* 3-D scene */}
-      <div style={{ width: 248, height: 248 }}>
+      <div style={{ width: 340, height: 340 }}>
         <LiquidHexScene score={s} />
       </div>
 
       {/* Score */}
-      <div className="flex items-baseline gap-1">
-        <span className="text-3xl font-bold text-foreground tabular-nums">{s}</span>
-        <span className="text-sm text-muted-foreground font-mono">/ 100</span>
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-4xl font-bold text-foreground tabular-nums">{s}</span>
+        <span className="text-base text-muted-foreground font-mono">/ 100</span>
       </div>
 
       {/* Rating label */}
