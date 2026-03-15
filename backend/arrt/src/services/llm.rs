@@ -1,9 +1,8 @@
-use reqwest::Client;
+use reqwest::Client; // kept for parameter types
 use serde_json::json;
 
-use crate::models::fraud::FraudReportSummaryContent;
+use crate::models::fraud::{FraudReportSummaryContent, GeoRiskResult};
 use crate::models::risk::{BusinessRiskReport, ConflictEvent, SanctionsHit};
-use crate::models::fraud::{GeoRiskResult, SanctionsResult};
 
 const MODEL: &str = "openai/gpt-oss-120b";
 
@@ -17,11 +16,11 @@ fn hf_api_key() -> String {
 }
 
 pub async fn explain_fraud(
+    client: &Client,
     triggered_rules: &[String],
     transaction_id: &str,
     risk_score: u32,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-    let client = Client::new();
     let rules_text = triggered_rules.join(", ");
     let prompt = build_prompt(transaction_id, risk_score, &rules_text);
 
@@ -60,9 +59,9 @@ pub async fn explain_fraud(
 }
 
 pub async fn summarize_fraud_reports(
+    client: &Client,
     report_context: &str,
 ) -> Result<FraudReportSummaryContent, Box<dyn std::error::Error + Send + Sync>> {
-    let client = Client::new();
     let prompt = build_report_summary_prompt(report_context);
 
     let resp = client
@@ -101,69 +100,10 @@ pub async fn summarize_fraud_reports(
     Ok(summary)
 }
 
-pub async fn screen_entities(
-    names: &[String],
-) -> Result<Vec<SanctionsResult>, Box<dyn std::error::Error + Send + Sync>> {
-    let client = Client::new();
-    let names_list = names
-        .iter()
-        .enumerate()
-        .map(|(i, n)| format!("{}. {}", i + 1, n))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    let prompt = format!(
-        "You are an AML compliance analyst. Screen the following entities against known sanctions \
-        patterns and lists (OFAC SDN, EU Consolidated, UN, FATF High-Risk).\n\n\
-        Entities to screen:\n{}\n\n\
-        Return a JSON array with one object per entity in order:\n\
-        [\n  {{\n    \
-          \"uploaded_name\": \"<original name>\",\n    \
-          \"matched_name\": \"<closest match or same if none>\",\n    \
-          \"confidence\": <0.0-1.0>,\n    \
-          \"risk_level\": \"HIGH|MEDIUM|LOW\",\n    \
-          \"sanctions_list\": \"<OFAC SDN|EU Consolidated|UN|FATF High-Risk|None>\",\n    \
-          \"reason\": \"<brief reason or 'No match found'>\",\n    \
-          \"ai_explanation\": \"<1-2 sentence professional explanation>\",\n    \
-          \"action\": \"<Block|Enhanced Due Diligence|Clear>\"\n  \
-        }}\n]\nReturn only the JSON array. No markdown.",
-        names_list
-    );
-
-    let resp = client
-        .post(format!("{}/chat/completions", hf_base_url()))
-        .header("Authorization", format!("Bearer {}", hf_api_key()))
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({
-            "model": MODEL,
-            "messages": [
-                { "role": "system", "content": "You are an AML compliance analyst. Return only valid JSON arrays, no markdown." },
-                { "role": "user", "content": prompt }
-            ],
-            "max_tokens": 1200,
-            "temperature": 0.1
-        }))
-        .send()
-        .await?
-        .json::<serde_json::Value>()
-        .await?;
-
-    let message = &resp["choices"][0]["message"];
-    let text = message["content"]
-        .as_str()
-        .or_else(|| message["reasoning"].as_str())
-        .unwrap_or("[]")
-        .trim();
-
-    let normalized = normalize_json_payload(text);
-    let results = serde_json::from_str::<Vec<SanctionsResult>>(&normalized)?;
-    Ok(results)
-}
-
 pub async fn analyze_geo_risk(
+    client: &Client,
     countries: &[String],
 ) -> Result<Vec<GeoRiskResult>, Box<dyn std::error::Error + Send + Sync>> {
-    let client = Client::new();
     let countries_list = countries.join(", ");
 
     let prompt = format!(
@@ -303,10 +243,10 @@ fn build_risk_prompt(
 /// Given an entity name and any OpenSanctions hits, ask the LLM to assess risk
 /// and write a short explanation. Returns (risk_level, ai_explanation).
 pub async fn explain_sanctions_entity(
+    client: &Client,
     entity_name: &str,
     hits: &[crate::models::risk::SanctionsHit],
 ) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync>> {
-    let client = Client::new();
 
     let hits_text = if hits.is_empty() {
         "No direct sanctions matches were found in the database.".to_string()
@@ -382,11 +322,11 @@ pub async fn explain_sanctions_entity(
 }
 
 pub async fn analyze_business_risk(
+    client: &Client,
     business_description: &str,
     sanctions_hits: &[SanctionsHit],
     conflict_events: &[ConflictEvent],
 ) -> Result<BusinessRiskReport, Box<dyn std::error::Error + Send + Sync>> {
-    let client = Client::new();
     let prompt = build_risk_prompt(business_description, sanctions_hits, conflict_events);
 
     let resp = client

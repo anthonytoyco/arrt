@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::models::fraud::{
     FraudReportRequest, FraudReportResponse, FraudReportSummaryContent, FraudReportSummaryResponse,
-    FraudResult, Transaction,
+    FraudResult, ScoringTx,
 };
 use crate::services::fraud_rules;
 use crate::services::llm;
@@ -44,7 +44,7 @@ pub async fn report(
 }
 
 pub async fn summary(State(state): State<AppState>) -> Json<FraudReportSummaryResponse> {
-    let transactions = sqlx::query_as::<_, Transaction>("SELECT * FROM transactions")
+    let transactions = sqlx::query_as::<_, ScoringTx>("SELECT * FROM transactions")
     .fetch_all(&state.db)
     .await
     .unwrap_or_default();
@@ -87,7 +87,7 @@ pub async fn summary(State(state): State<AppState>) -> Json<FraudReportSummaryRe
     }
 
     let report_context = build_report_context(&flagged_results);
-    let (summary, ai_generated) = match llm::summarize_fraud_reports(&report_context).await {
+    let (summary, ai_generated) = match llm::summarize_fraud_reports(&state.http, &report_context).await {
         Ok(summary) => (summary, true),
         Err(err) => {
             tracing::warn!("Failed to generate fraud report summary with AI: {}", err);

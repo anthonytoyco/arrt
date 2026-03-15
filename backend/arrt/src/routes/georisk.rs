@@ -1,8 +1,9 @@
-use axum::{http::StatusCode, Json};
+use axum::{extract::State, http::StatusCode, Json};
 use serde::Deserialize;
 
 use crate::models::fraud::GeoRiskResponse;
 use crate::services::llm;
+use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct GeoRiskRequest {
@@ -14,6 +15,7 @@ pub struct GeoRiskRequest {
 /// Accept JSON `{ "countries": ["Myanmar", "Nigeria"] }` and return an
 /// AI-generated risk assessment for each country.
 pub async fn analyze(
+    State(state): State<AppState>,
     Json(payload): Json<GeoRiskRequest>,
 ) -> Result<Json<GeoRiskResponse>, (StatusCode, String)> {
     let countries: Vec<String> = payload
@@ -31,7 +33,7 @@ pub async fn analyze(
         return Err((StatusCode::BAD_REQUEST, "Maximum 20 countries per request.".to_string()));
     }
 
-    let results = llm::analyze_geo_risk(&countries).await.map_err(|e| {
+    let results = llm::analyze_geo_risk(&state.http, &countries).await.map_err(|e| {
         tracing::error!("Geo-risk analysis failed: {}", e);
         (StatusCode::INTERNAL_SERVER_ERROR, format!("Analysis failed: {}", e))
     })?;

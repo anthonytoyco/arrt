@@ -2,7 +2,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::models::fraud::{BenfordResponse, DigitAnalysis, DuplicateGroup, DuplicatesResponse, Transaction};
+use crate::models::fraud::{BenfordResponse, DigitAnalysis, DuplicateGroup, DuplicatesResponse, ScoringTx};
 
 fn ai_base_url() -> String {
     std::env::var("AI_SERVICE_URL")
@@ -38,7 +38,7 @@ struct AnomalyResponse {
 /// Returns empty map if the AI service is unavailable — never panics.
 pub async fn get_anomaly_scores(
     client: &Client,
-    transactions: &[Transaction],
+    transactions: &[ScoringTx],
 ) -> HashMap<String, f64> {
     let payload: Vec<AnomalyTx> = transactions
         .iter()

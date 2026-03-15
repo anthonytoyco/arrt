@@ -99,7 +99,7 @@ pub async fn scan(
 
         // Ask the LLM to assess risk and explain — covers both no-match cases
         // (where known bad actors may still be identified by name) and hit cases.
-        let (llm_risk, ai_explanation) = llm::explain_sanctions_entity(&name, &hits)
+        let (llm_risk, ai_explanation) = llm::explain_sanctions_entity(&state.http, &name, &hits)
             .await
             .unwrap_or_else(|_| ("LOW".to_string(), String::new()));
 

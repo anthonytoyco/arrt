@@ -167,6 +167,9 @@ export type PipelineOutcome =
 
 export interface PipelineResult {
   transaction_id: string;
+  customer_name: string | null;
+  amount: number | null;
+  timestamp: string | null;
   risk_score: number;
   outcome: PipelineOutcome;
   triggered_rules: string[];
@@ -295,9 +298,9 @@ export async function scanAnomalies(file: File): Promise<AnomaliesResponse> {
 
   const mapped: AnomalyResult[] = pipeline.results.map((r, i) => ({
     row_index: i,
-    date: new Date().toISOString().split("T")[0],
-    vendor: r.transaction_id,
-    amount: 0,
+    date: r.timestamp ?? new Date().toISOString().split("T")[0],
+    vendor: r.customer_name ?? r.transaction_id,
+    amount: r.amount ?? 0,
     anomaly_score: r.risk_score / 100,
     risk_level:
       r.risk_score >= 70 ? "HIGH" : r.risk_score >= 40 ? "MEDIUM" : "LOW",

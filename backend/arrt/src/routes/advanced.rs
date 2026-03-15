@@ -15,7 +15,7 @@ pub async fn benford(State(state): State<AppState>) -> Json<BenfordResponse> {
     let amounts: Vec<f64> = transactions.iter().filter_map(|tx| tx.amount).collect();
     let mut result = anomaly_service::get_benford_analysis(&state.http, &amounts).await;
 
-    // Ask Gemini to explain if suspicious
+    // Ask LLM to explain if suspicious
     if result.is_suspicious == Some(true) && !result.flagged_digits.is_empty() {
         let digits: Vec<String> = result.flagged_digits.iter().map(|d| d.to_string()).collect();
         let rules = vec![format!(
@@ -23,7 +23,7 @@ pub async fn benford(State(state): State<AppState>) -> Json<BenfordResponse> {
             result.chi_square.unwrap_or(0.0),
             digits.join(", ")
         )];
-        result.ai_explanation = llm::explain_fraud(&rules, "BATCH-BENFORD", 75).await.ok();
+        result.ai_explanation = llm::explain_fraud(&state.http, &rules, "BATCH-BENFORD", 75).await.ok();
     }
 
     Json(result)
@@ -38,14 +38,14 @@ pub async fn duplicates(State(state): State<AppState>) -> Json<DuplicatesRespons
 
     let mut result = anomaly_service::get_duplicates(&state.http, &transactions).await;
 
-    // Ask Gemini to explain if duplicates found
+    // Ask LLM to explain if duplicates found
     if result.total_duplicate_groups > 0 {
         let rules = vec![format!(
             "{} duplicate invoice group(s) detected across {} transactions",
             result.total_duplicate_groups,
             transactions.len()
         )];
-        result.ai_explanation = llm::explain_fraud(&rules, "BATCH-DUPLICATES", 60).await.ok();
+        result.ai_explanation = llm::explain_fraud(&state.http, &rules, "BATCH-DUPLICATES", 60).await.ok();
     }
 
     Json(result)

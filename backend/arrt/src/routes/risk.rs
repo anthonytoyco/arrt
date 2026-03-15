@@ -16,8 +16,8 @@ pub async fn business_risk(
         ucdp::get_conflicts(&state.http, &countries),
     );
 
-    // Hand off to Feature Person 2's LLM service
     let report = llm::analyze_business_risk(
+        &state.http,
         &payload.business_description,
         &sanctions_hits,
         &conflict_events,

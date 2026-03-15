@@ -5,7 +5,7 @@ use axum::{
 };
 
 use crate::models::fraud::{
-    PipelineOutcome, PipelineResponse, PipelineResult, Transaction, TransactionInput,
+    PipelineOutcome, PipelineResponse, PipelineResult, ScoringTx, TransactionInput,
 };
 use crate::services::{ai_parser, fraud_rules, gemini_vision, llm};
 use crate::state::AppState;
@@ -97,13 +97,21 @@ pub async fn ingest(
 
     // ── Score + route each transaction ────────────────────────────────────────
     for input in transactions {
-        let tx: Transaction = input.into();
+        // Capture display fields before consuming input into ScoringTx
+        let customer_name = input.customer_name.clone();
+        let amount = input.amount;
+        let timestamp = input.timestamp.clone();
+
+        let tx: ScoringTx = input.into();
         let (risk_score, triggered_rules) = fraud_rules::score(&tx);
 
         if risk_score < CLEAN_THRESHOLD {
             // ── CLEAN — no action ─────────────────────────────────────────────
             results.push(PipelineResult {
                 transaction_id: tx.transaction_id,
+                customer_name,
+                amount,
+                timestamp,
                 risk_score,
                 outcome: PipelineOutcome::Clean,
                 triggered_rules,
@@ -125,6 +133,9 @@ pub async fn ingest(
 
             results.push(PipelineResult {
                 transaction_id: tx.transaction_id,
+                customer_name,
+                amount,
+                timestamp,
                 risk_score,
                 outcome: PipelineOutcome::FraudReportSaved,
                 triggered_rules,
@@ -133,7 +144,7 @@ pub async fn ingest(
             });
         } else {
             // ── AMBIGUOUS (20–70) — deep AI review then save report ───────────
-            let ai_notes = llm::explain_fraud(&triggered_rules, &tx.transaction_id, risk_score)
+            let ai_notes = llm::explain_fraud(&state.http, &triggered_rules, &tx.transaction_id, risk_score)
                 .await
                 .ok();
 
@@ -158,6 +169,9 @@ pub async fn ingest(
 
             results.push(PipelineResult {
                 transaction_id: tx.transaction_id,
+                customer_name,
+                amount,
+                timestamp,
                 risk_score,
                 outcome: PipelineOutcome::DeepReviewAndReportSaved,
                 triggered_rules,
@@ -212,6 +226,7 @@ fn parse_csv(bytes: &[u8]) -> Result<Vec<TransactionInput>, Box<dyn std::error::
             transaction_id,
             customer_name: get("customer_name"),
             amount: get("amount").and_then(|v| v.parse::<f64>().ok()),
+            timestamp: get("timestamp"),
             cvv_match: parse_bool("cvv_match"),
             avs_result: get("avs_result"),
             address_match: parse_bool("address_match"),
