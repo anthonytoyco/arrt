@@ -5,11 +5,6 @@ export async function middleware(request: NextRequest) {
   const isPublicPage = pathname === "/";
   const hasRefreshToken = request.cookies.has("refresh_token");
 
-  // Redirect authenticated users away from the landing page to the dashboard
-  if (isPublicPage && hasRefreshToken) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
   // Redirect unauthenticated users away from protected pages to the landing page
   if (!isPublicPage && !hasRefreshToken) {
     return NextResponse.redirect(new URL("/", request.url));

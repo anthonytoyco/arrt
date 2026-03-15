@@ -1,13 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { FlaggedTransactions } from "@/components/FlaggedTransactions";
 import { ResultsTable } from "@/components/ResultsTable";
 import { AlertTriangle } from "lucide-react";
-import type {
-  AnomaliesResponse,
-  FraudResult,
-} from "@/lib/api";
+import type { AnomaliesResponse } from "@/lib/api";
 
 export interface ManualTx {
   customer_name: string;
@@ -45,8 +41,6 @@ interface AnomalyTabProps {
   hasData: boolean;
   onRunAnalysis: () => void;
   anomaliesLoading: boolean;
-  fraudScanLoading: boolean;
-  fraudResults: FraudResult[];
   anomaliesData: AnomaliesResponse | null;
   rowCount: number;
   csvOriginalFile: File | null;
@@ -56,16 +50,13 @@ export function AnomalyTab({
   hasData,
   onRunAnalysis,
   anomaliesLoading,
-  fraudScanLoading,
-  fraudResults,
   anomaliesData,
   rowCount,
   csvOriginalFile,
 }: AnomalyTabProps) {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-[1fr_1fr] gap-px bg-border">
-        <div className="bg-card p-6 space-y-4">
+      <div className="bg-card p-6 space-y-4">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 border border-border flex items-center justify-center">
               <AlertTriangle className="h-4 w-4 text-foreground" />
@@ -84,7 +75,7 @@ export function AnomalyTab({
             <>
               <p className="text-xs text-muted-foreground">
                 {csvOriginalFile?.type === "application/pdf" ||
-                  csvOriginalFile?.name.toLowerCase().endsWith(".pdf")
+                csvOriginalFile?.name.toLowerCase().endsWith(".pdf")
                   ? "1 PDF document"
                   : `${rowCount} row${rowCount !== 1 ? "s" : ""} from your transaction set`}
               </p>
@@ -98,20 +89,10 @@ export function AnomalyTab({
             </>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Add transactions in the <strong>Transactions</strong> tab, then return here to run analysis.
+              Add transactions in the <strong>Transactions</strong> tab, then
+              return here to run analysis.
             </p>
           )}
-        </div>
-
-        <div className="bg-card p-6 flex flex-col">
-          {fraudScanLoading ? (
-            <p className="text-xs text-muted-foreground animate-pulse font-mono">
-              Loading...
-            </p>
-          ) : (
-            <FlaggedTransactions results={fraudResults} />
-          )}
-        </div>
       </div>
 
       <div className="border border-border bg-card">
@@ -126,14 +107,11 @@ export function AnomalyTab({
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <p className="text-xs text-muted-foreground font-mono">
                   {csvOriginalFile?.type === "application/pdf" ||
-                    csvOriginalFile?.name.toLowerCase().endsWith(".pdf")
+                  csvOriginalFile?.name.toLowerCase().endsWith(".pdf")
                     ? "1 PDF document"
                     : `${rowCount} row${rowCount !== 1 ? "s" : ""} scanned`}
                 </p>
-                <Button
-                  disabled={anomaliesLoading}
-                  onClick={onRunAnalysis}
-                >
+                <Button disabled={anomaliesLoading} onClick={onRunAnalysis}>
                   {anomaliesLoading ? "Analyzing..." : "Run Analysis"}
                 </Button>
               </div>

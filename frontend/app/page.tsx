@@ -968,7 +968,7 @@ export default function Dashboard() {
     { id: "overview", label: "overview", icon: <Cuboid className="h-4 w-4" /> },
     {
       id: "transactions",
-      label: "transactions",
+      label: "file upload",
       icon: <ListOrdered className="h-4 w-4" />,
     },
     {
@@ -1301,8 +1301,6 @@ export default function Dashboard() {
               }
               onRunAnalysis={handleRunAnalysis}
               anomaliesLoading={anomaliesLoading}
-              fraudScanLoading={fraudScanLoading}
-              fraudResults={displayFraudResults}
               anomaliesData={anomaliesData}
               rowCount={
                 csvHeaders.length > 0

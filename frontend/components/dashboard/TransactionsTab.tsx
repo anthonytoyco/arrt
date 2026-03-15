@@ -49,9 +49,10 @@ export function TransactionsTab({
   return (
     <div className="space-y-6">
       <div className="bg-card border border-border p-6 space-y-4">
-        <p className="text-sm font-semibold text-foreground">Transactions</p>
+        <p className="text-sm font-semibold text-foreground">File Upload</p>
         <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
-          Upload a CSV or PDF, or add transactions manually. Then run analysis in the Anomaly Detector tab.
+          Upload a CSV or PDF, or add transactions manually. Then run analysis
+          in the Anomaly Detector tab.
         </p>
 
         <DropZone
@@ -86,7 +87,10 @@ export function TransactionsTab({
                   type="text"
                   value={manualTxInput.customer_name}
                   onChange={(e) =>
-                    setManualTxInput((p) => ({ ...p, customer_name: e.target.value }))
+                    setManualTxInput((p) => ({
+                      ...p,
+                      customer_name: e.target.value,
+                    }))
                   }
                   placeholder="Jane Doe"
                   className="w-full border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-foreground transition-colors"
@@ -100,7 +104,10 @@ export function TransactionsTab({
                   type="datetime-local"
                   value={manualTxInput.timestamp}
                   onChange={(e) =>
-                    setManualTxInput((p) => ({ ...p, timestamp: e.target.value }))
+                    setManualTxInput((p) => ({
+                      ...p,
+                      timestamp: e.target.value,
+                    }))
                   }
                   className="w-full border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-foreground transition-colors"
                 />
@@ -128,7 +135,10 @@ export function TransactionsTab({
                 <select
                   value={manualTxInput.currency}
                   onChange={(e) =>
-                    setManualTxInput((p) => ({ ...p, currency: e.target.value }))
+                    setManualTxInput((p) => ({
+                      ...p,
+                      currency: e.target.value,
+                    }))
                   }
                   className="w-full border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-foreground transition-colors"
                 >
@@ -146,15 +156,20 @@ export function TransactionsTab({
                 <select
                   value={manualTxInput.payment_method}
                   onChange={(e) =>
-                    setManualTxInput((p) => ({ ...p, payment_method: e.target.value }))
+                    setManualTxInput((p) => ({
+                      ...p,
+                      payment_method: e.target.value,
+                    }))
                   }
                   className="w-full border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-foreground transition-colors"
                 >
-                  {["credit_card", "debit", "cash", "bank_transfer"].map((m) => (
-                    <option key={m} value={m}>
-                      {m.replace("_", " ")}
-                    </option>
-                  ))}
+                  {["credit_card", "debit", "cash", "bank_transfer"].map(
+                    (m) => (
+                      <option key={m} value={m}>
+                        {m.replace("_", " ")}
+                      </option>
+                    ),
+                  )}
                 </select>
               </div>
               <div className="space-y-1">
@@ -164,7 +179,10 @@ export function TransactionsTab({
                 <select
                   value={manualTxInput.card_brand}
                   onChange={(e) =>
-                    setManualTxInput((p) => ({ ...p, card_brand: e.target.value }))
+                    setManualTxInput((p) => ({
+                      ...p,
+                      card_brand: e.target.value,
+                    }))
                   }
                   className="w-full border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-foreground transition-colors"
                 >
@@ -217,7 +235,10 @@ export function TransactionsTab({
                 <select
                   value={manualTxInput.device_type}
                   onChange={(e) =>
-                    setManualTxInput((p) => ({ ...p, device_type: e.target.value }))
+                    setManualTxInput((p) => ({
+                      ...p,
+                      device_type: e.target.value,
+                    }))
                   }
                   className="w-full border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-foreground transition-colors"
                 >
@@ -233,7 +254,10 @@ export function TransactionsTab({
                   type="checkbox"
                   checked={manualTxInput.cvv_match}
                   onChange={(e) =>
-                    setManualTxInput((p) => ({ ...p, cvv_match: e.target.checked }))
+                    setManualTxInput((p) => ({
+                      ...p,
+                      cvv_match: e.target.checked,
+                    }))
                   }
                   className="accent-foreground"
                 />
@@ -244,18 +268,26 @@ export function TransactionsTab({
                   type="checkbox"
                   checked={manualTxInput.address_match}
                   onChange={(e) =>
-                    setManualTxInput((p) => ({ ...p, address_match: e.target.checked }))
+                    setManualTxInput((p) => ({
+                      ...p,
+                      address_match: e.target.checked,
+                    }))
                   }
                   className="accent-foreground"
                 />
-                <span className="text-xs text-muted-foreground">Address Match</span>
+                <span className="text-xs text-muted-foreground">
+                  Address Match
+                </span>
               </label>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={manualTxInput.ip_is_vpn}
                   onChange={(e) =>
-                    setManualTxInput((p) => ({ ...p, ip_is_vpn: e.target.checked }))
+                    setManualTxInput((p) => ({
+                      ...p,
+                      ip_is_vpn: e.target.checked,
+                    }))
                   }
                   className="accent-foreground"
                 />
@@ -285,7 +317,10 @@ export function TransactionsTab({
                 </thead>
                 <tbody className="divide-y divide-border">
                   {manualTransactions.map((t, i) => (
-                    <tr key={i} className="hover:bg-accent/50 transition-colors">
+                    <tr
+                      key={i}
+                      className="hover:bg-accent/50 transition-colors"
+                    >
                       <td className="px-3 py-2 font-medium text-foreground truncate max-w-[90px]">
                         {t.customer_name}
                       </td>
@@ -342,7 +377,9 @@ export function TransactionsTab({
         )}
       </div>
 
-      {(csvHeaders.length > 0 || manualTransactions.length > 0 || csvOriginalFile) && (
+      {(csvHeaders.length > 0 ||
+        manualTransactions.length > 0 ||
+        csvOriginalFile) && (
         <div className="border border-border bg-card">
           <div className="px-5 py-3 border-b border-border">
             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.2em]">
@@ -351,10 +388,15 @@ export function TransactionsTab({
           </div>
           <div className="p-6">
             {csvHeaders.length > 0 ? (
-              <CSVDataTable headers={csvHeaders} rows={csvRows} onChange={setCsvRows} />
+              <CSVDataTable
+                headers={csvHeaders}
+                rows={csvRows}
+                onChange={setCsvRows}
+              />
             ) : (
               <p className="text-xs text-muted-foreground">
-                {manualTransactions.length} manual transaction(s). Add a CSV to see the full table.
+                {manualTransactions.length} manual transaction(s). Add a CSV to
+                see the full table.
               </p>
             )}
           </div>
