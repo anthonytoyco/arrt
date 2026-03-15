@@ -177,6 +177,7 @@ fn empty_summary() -> FraudReportSummaryResponse {
     FraudReportSummaryResponse {
         report_count: 0,
         ai_generated: false,
+        railtracks_generated: false,
         common_vulnerabilities: vec![],
         potential_reasons: vec![],
         improvement_advice: vec![],
