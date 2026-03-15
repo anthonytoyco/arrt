@@ -37,19 +37,36 @@ import type { ManualTx } from "@/components/dashboard/AnomalyTab";
 import { EntityTab } from "@/components/dashboard/EntityTab";
 import { GeoSanctionsTab } from "@/components/dashboard/GeoSanctionsTab";
 import { AIFraudTab } from "@/components/dashboard/AIFraudTab";
-import { AlertTriangle, Cuboid, ListOrdered, LogOut, Shield, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  Cuboid,
+  Github,
+  ListOrdered,
+  LogOut,
+  Shield,
+  Users,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { registerRequest } from "@/lib/auth";
 import Image from "next/image";
 
-type SidebarTab = "overview" | "transactions" | "anomaly" | "entity" | "geosanctions" | "aifraud";
+type SidebarTab =
+  | "overview"
+  | "transactions"
+  | "anomaly"
+  | "entity"
+  | "geosanctions"
+  | "aifraud";
 
 export default function Dashboard() {
   const { user, login, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<SidebarTab>("overview");
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [loginError, setLoginError] = useState<string | null>(null);
-  const [loginLoading, setLoginLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
 
   const [sanctionsData, setSanctionsData] = useState<SanctionsResponse | null>(
     null,
@@ -64,7 +81,8 @@ export default function Dashboard() {
   const [fraudReportSummary, setFraudReportSummary] =
     useState<FraudReportSummary | null>(null);
   const [fraudScanLoading, setFraudScanLoading] = useState(true);
-  const [agentScanReport, setAgentScanReport] = useState<AgentScanReport | null>(null);
+  const [agentScanReport, setAgentScanReport] =
+    useState<AgentScanReport | null>(null);
   const [agentScanLoading, setAgentScanLoading] = useState(false);
   const [agentScanDocument, setAgentScanDocument] = useState<File | null>(null);
 
@@ -83,8 +101,7 @@ export default function Dashboard() {
           setFraudScanData(scanResult.value);
         if (summaryResult.status === "fulfilled")
           setFraudReportSummary(summaryResult.value);
-        if (statsResult.status === "fulfilled")
-          setStatsData(statsResult.value);
+        if (statsResult.status === "fulfilled") setStatsData(statsResult.value);
       })
       .finally(() => {
         if (!cancelled) {
@@ -103,7 +120,9 @@ export default function Dashboard() {
     const prev = prevTabRef.current;
     prevTabRef.current = activeTab;
     if (prev !== null && activeTab === "overview") {
-      fetchStats().then(setStatsData).catch(() => { });
+      fetchStats()
+        .then(setStatsData)
+        .catch(() => {});
     }
   }, [activeTab]);
 
@@ -137,7 +156,10 @@ export default function Dashboard() {
       report_count: report.anomalous_transaction_ids.length,
       ai_generated: true,
       common_vulnerabilities: [report.summary],
-      potential_reasons: report.recommendations.length > 0 ? report.recommendations.slice(0, 2) : ["See summary and recommendations."],
+      potential_reasons:
+        report.recommendations.length > 0
+          ? report.recommendations.slice(0, 2)
+          : ["See summary and recommendations."],
       improvement_advice: report.recommendations,
       disclaimer: "Based on the latest full AI fraud analysis run.",
     };
@@ -205,16 +227,39 @@ export default function Dashboard() {
       }>;
       if (allRows.length > 0) {
         payload = allRows.map((row, i) => {
-          const amt = row.amount != null && row.amount !== "" ? parseFloat(row.amount) : null;
+          const amt =
+            row.amount != null && row.amount !== ""
+              ? parseFloat(row.amount)
+              : null;
           return {
             transaction_id: row.transaction_id ?? row.id ?? `TXN-${i + 1}`,
             order_id: row.order_id ?? null,
             customer_id: row.customer_id ?? row.customer_name ?? null,
             amount: amt != null && !Number.isNaN(amt) ? amt : null,
-            cvv_match: row.cvv_match === "true" ? true : row.cvv_match === "false" ? false : null,
-            address_match: row.address_match === "true" ? true : row.address_match === "false" ? false : null,
-            ip_is_vpn: row.ip_is_vpn === "true" ? true : row.ip_is_vpn === "false" ? false : null,
-            card_present: row.card_present === "true" ? true : row.card_present === "false" ? false : null,
+            cvv_match:
+              row.cvv_match === "true"
+                ? true
+                : row.cvv_match === "false"
+                  ? false
+                  : null,
+            address_match:
+              row.address_match === "true"
+                ? true
+                : row.address_match === "false"
+                  ? false
+                  : null,
+            ip_is_vpn:
+              row.ip_is_vpn === "true"
+                ? true
+                : row.ip_is_vpn === "false"
+                  ? false
+                  : null,
+            card_present:
+              row.card_present === "true"
+                ? true
+                : row.card_present === "false"
+                  ? false
+                  : null,
             timestamp: row.timestamp ?? null,
           };
         });
@@ -237,10 +282,14 @@ export default function Dashboard() {
         }));
       }
       if (payload.length === 0) {
-        setError("No transactions to analyze. Add transactions or upload a CSV in the Anomaly tab.");
+        setError(
+          "No transactions to analyze. Add transactions or upload a CSV in the Anomaly tab.",
+        );
         return;
       }
-      let docOptions: { document_base64?: string; mime_type?: string } | undefined;
+      let docOptions:
+        | { document_base64?: string; mime_type?: string }
+        | undefined;
       if (agentScanDocument) {
         const base64 = await new Promise<string>((resolve, reject) => {
           const r = new FileReader();
@@ -252,7 +301,10 @@ export default function Dashboard() {
           r.onerror = () => reject(new Error("Failed to read document"));
           r.readAsDataURL(agentScanDocument);
         });
-        docOptions = { document_base64: base64, mime_type: agentScanDocument.type || "application/octet-stream" };
+        docOptions = {
+          document_base64: base64,
+          mime_type: agentScanDocument.type || "application/octet-stream",
+        };
       }
       const report = await agentScan(payload, docOptions);
       setAgentScanReport(report);
@@ -328,6 +380,33 @@ export default function Dashboard() {
   const [statsData, setStatsData] = useState<StatsResponse | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
+  function openModal(initialMode: "login" | "register") {
+    setMode(initialMode);
+    setAuthError(null);
+    setAuthEmail("");
+    setAuthPassword("");
+    setModalOpen(true);
+  }
+
+  async function handleAuthSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setAuthError(null);
+    setAuthLoading(true);
+    try {
+      if (mode === "register") {
+        await registerRequest(authEmail, authPassword);
+      }
+      await login(authEmail, authPassword);
+      setModalOpen(false);
+      setAuthEmail("");
+      setAuthPassword("");
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
   function handleAnomalyFile(file: File) {
     setCsvOriginalFile(file);
     setCsvFileName(file.name);
@@ -345,26 +424,34 @@ export default function Dashboard() {
         // #region agent log
         const amountKey = newHeaders.find((h) => h.toLowerCase() === "amount");
         const parsedAmounts = amountKey
-          ? newRows.map((r) => r[amountKey]).filter(Boolean).map((s) => Number(s))
+          ? newRows
+              .map((r) => r[amountKey])
+              .filter(Boolean)
+              .map((s) => Number(s))
           : [];
         const validAmounts = parsedAmounts.filter((n) => !Number.isNaN(n));
-        const maxParsed = validAmounts.length ? Math.max(...validAmounts) : null;
-        fetch("http://127.0.0.1:7242/ingest/a3ba57d6-4434-4c97-9efb-bd3955e640d5", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            location: "page.tsx:handleAnomalyFile",
-            message: "CSV parsed after drop",
-            hypothesisId: ["anomaly_amount"],
-            data: {
-              rowCount: newRows.length,
-              amountKey: amountKey ?? null,
-              sampleAmounts: validAmounts.slice(0, 5),
-              maxParsedAmount: maxParsed,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => { });
+        const maxParsed = validAmounts.length
+          ? Math.max(...validAmounts)
+          : null;
+        fetch(
+          "http://127.0.0.1:7242/ingest/a3ba57d6-4434-4c97-9efb-bd3955e640d5",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "page.tsx:handleAnomalyFile",
+              message: "CSV parsed after drop",
+              hypothesisId: ["anomaly_amount"],
+              data: {
+                rowCount: newRows.length,
+                amountKey: amountKey ?? null,
+                sampleAmounts: validAmounts.slice(0, 5),
+                maxParsedAmount: maxParsed,
+              },
+              timestamp: Date.now(),
+            }),
+          },
+        ).catch(() => {});
         // #endregion
         setCsvHeaders((prevHeaders) => {
           const merged = prevHeaders.length ? [...prevHeaders] : [];
@@ -465,9 +552,15 @@ export default function Dashboard() {
     ];
     const totalRows = allRows.length;
     // #region agent log
-    const manualAmounts = manualTransactions.map((t) => t.amount).filter(Boolean).map((s) => Number(s));
+    const manualAmounts = manualTransactions
+      .map((t) => t.amount)
+      .filter(Boolean)
+      .map((s) => Number(s));
     const validManualAmounts = manualAmounts.filter((n) => !Number.isNaN(n));
-    const allAmounts = allRows.map((r) => r.amount).filter(Boolean).map((s) => Number(s));
+    const allAmounts = allRows
+      .map((r) => r.amount)
+      .filter(Boolean)
+      .map((s) => Number(s));
     const validAllAmounts = allAmounts.filter((n) => !Number.isNaN(n));
     fetch("http://127.0.0.1:7242/ingest/a3ba57d6-4434-4c97-9efb-bd3955e640d5", {
       method: "POST",
@@ -481,12 +574,16 @@ export default function Dashboard() {
           manualTransactionCount: manualTransactions.length,
           totalRows,
           manualAmountsSample: validManualAmounts.slice(0, 5),
-          maxManualAmount: validManualAmounts.length ? Math.max(...validManualAmounts) : null,
-          maxAmountInPayload: validAllAmounts.length ? Math.max(...validAllAmounts) : null,
+          maxManualAmount: validManualAmounts.length
+            ? Math.max(...validManualAmounts)
+            : null,
+          maxAmountInPayload: validAllAmounts.length
+            ? Math.max(...validAllAmounts)
+            : null,
         },
         timestamp: Date.now(),
       }),
-    }).catch(() => { });
+    }).catch(() => {});
     // #endregion
     // Only do incremental (skip already-scanned rows) when we have a prior run and new rows were added
     const doFullScan =
@@ -494,7 +591,6 @@ export default function Dashboard() {
 
     try {
       let file: File;
-      let rowsToSend: Record<string, string>[];
 
       if (
         csvOriginalFile &&
@@ -503,10 +599,8 @@ export default function Dashboard() {
       ) {
         file = csvOriginalFile;
         setLastScannedCount(0);
-        rowsToSend = allRows;
       } else if (doFullScan) {
         setLastScannedCount(0);
-        rowsToSend = allRows;
         if (
           manualTransactions.length === 0 &&
           csvOriginalFile &&
@@ -523,7 +617,6 @@ export default function Dashboard() {
       } else {
         // Send only new rows (indices lastScannedCount..totalRows-1)
         const newRowsOnly = allRows.slice(lastScannedCount);
-        rowsToSend = newRowsOnly;
         setCsvHeaders(headers);
         setCsvRows(allRows);
         file = rowsToCSVFile(headers, newRowsOnly);
@@ -561,7 +654,9 @@ export default function Dashboard() {
       setLastScannedCount(totalRows);
 
       // Refetch stats immediately so Overview shows correct total volume, transactions, top vendors (pipeline wrote to DB)
-      fetchStats().then(setStatsData).catch(() => { });
+      fetchStats()
+        .then(setStatsData)
+        .catch(() => {});
 
       // Persist scan so it loads on next visit; refetch stats again so Overview "Last fraud scan" updates
       const name = `Transactions – ${new Date().toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}`;
@@ -578,8 +673,12 @@ export default function Dashboard() {
         },
         scan_results: finalAnomalyState.results,
       })
-        .then(() => fetchStats().then(setStatsData).catch(() => { }))
-        .catch(() => { });
+        .then(() =>
+          fetchStats()
+            .then(setStatsData)
+            .catch(() => {}),
+        )
+        .catch(() => {});
     } catch {
       setError("Anomaly scan failed. Is the backend running?");
     } finally {
@@ -657,7 +756,9 @@ export default function Dashboard() {
       setCsvSaveMessage("Saved");
       setTimeout(() => setCsvSaveMessage(null), 3000);
       // Refetch overview stats so they reflect the transactions we just saved to the DB
-      fetchStats().then(setStatsData).catch(() => { });
+      fetchStats()
+        .then(setStatsData)
+        .catch(() => {});
     } catch (e) {
       setCsvSaveMessage(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -713,7 +814,7 @@ export default function Dashboard() {
         );
         applySavedLog(sorted[0]);
       })
-      .catch(() => { });
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -790,7 +891,7 @@ export default function Dashboard() {
         );
         applySavedEntityLog(sorted[0]);
       })
-      .catch(() => { });
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -810,16 +911,16 @@ export default function Dashboard() {
     const sanctionsPromise =
       allEntities.length > 0
         ? (() => {
-          const csvContent =
-            "description,country\n" +
-            allEntities
-              .map((e) => `${e.description},${e.country}`)
-              .join("\n");
-          const fileToScan = new File([csvContent], "entities.csv", {
-            type: "text/csv",
-          });
-          return scanSanctions(fileToScan);
-        })()
+            const csvContent =
+              "description,country\n" +
+              allEntities
+                .map((e) => `${e.description},${e.country}`)
+                .join("\n");
+            const fileToScan = new File([csvContent], "entities.csv", {
+              type: "text/csv",
+            });
+            return scanSanctions(fileToScan);
+          })()
         : Promise.resolve(null);
 
     const geoPromise =
@@ -849,7 +950,7 @@ export default function Dashboard() {
           entities: allEntities,
           sanctions_results: newSanctions ?? null,
           geo_results: newGeo ?? null,
-        }).catch(() => { });
+        }).catch(() => {});
       }
     } catch {
       setError("Scan failed. Is the backend running?");
@@ -864,25 +965,216 @@ export default function Dashboard() {
     label: string;
     icon: React.ReactNode;
   }[] = [
-      { id: "overview", label: "overview", icon: <Cuboid className="h-4 w-4" /> },
-      { id: "transactions", label: "transactions", icon: <ListOrdered className="h-4 w-4" /> },
-      {
-        id: "anomaly",
-        label: "anomaly detector",
-        icon: <AlertTriangle className="h-4 w-4" />,
-      },
-      { id: "entity", label: "entity", icon: <Users className="h-4 w-4" /> },
-      {
-        id: "geosanctions",
-        label: "geo & sanctions",
-        icon: <Shield className="h-4 w-4" />,
-      },
-      {
-        id: "aifraud",
-        label: "AI fraud analysis",
-        icon: <AlertTriangle className="h-4 w-4" />,
-      },
-    ];
+    { id: "overview", label: "overview", icon: <Cuboid className="h-4 w-4" /> },
+    {
+      id: "transactions",
+      label: "transactions",
+      icon: <ListOrdered className="h-4 w-4" />,
+    },
+    {
+      id: "anomaly",
+      label: "anomaly detector",
+      icon: <AlertTriangle className="h-4 w-4" />,
+    },
+    { id: "entity", label: "entity", icon: <Users className="h-4 w-4" /> },
+    {
+      id: "geosanctions",
+      label: "geo & sanctions",
+      icon: <Shield className="h-4 w-4" />,
+    },
+    {
+      id: "aifraud",
+      label: "AI fraud analysis",
+      icon: <AlertTriangle className="h-4 w-4" />,
+    },
+  ];
+
+  if (!user) {
+    return (
+      <div
+        className="h-screen overflow-hidden flex flex-col bg-white text-black"
+        style={{ fontFamily: "var(--font-space-grotesk)" }}
+      >
+        <header className="flex items-center justify-between px-6 py-5 shrink-0">
+          <Image
+            src="/yosemite_logo.png"
+            alt="Yosemite"
+            width={36}
+            height={36}
+            className="object-contain"
+          />
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center">
+              <button
+                onClick={() => openModal("login")}
+                className="border border-black w-24 py-2 text-xs font-medium tracking-widest lowercase hover:bg-black hover:text-white transition-colors"
+              >
+                log in
+              </button>
+              <button
+                onClick={() => openModal("register")}
+                className="border border-black border-l-0 w-24 py-2 text-xs font-medium tracking-widest lowercase hover:bg-black hover:text-white transition-colors"
+              >
+                sign up
+              </button>
+            </div>
+            <a
+              href="https://github.com/anthonytoyco/arrt"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="aspect-square py-2 flex items-center justify-center hover:text-black/50 transition-colors"
+              aria-label="GitHub"
+            >
+              <Github size={18} strokeWidth={1.5} />
+            </a>
+          </div>
+        </header>
+
+        <div className="flex-1" />
+
+        <div
+          className="shrink-0 flex justify-center"
+          style={{ height: "24vw" }}
+        >
+          <span
+            className="leading-none select-none"
+            style={{
+              fontFamily: "var(--font-space-grotesk)",
+              fontWeight: 700,
+              fontSize: "20vw",
+              letterSpacing: "-0.03em",
+              whiteSpace: "nowrap",
+            }}
+          >
+            yosem
+            <span className="relative inline-block">
+              {"\u0131"}
+              <Image
+                src="/yosemite_logo.png"
+                alt=""
+                width={48}
+                height={48}
+                className="absolute pointer-events-none"
+                style={{
+                  width: "0.28em",
+                  height: "auto",
+                  top: "0.04em",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                }}
+              />
+            </span>
+            te
+          </span>
+        </div>
+
+        {modalOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 backdrop-blur-[2px]"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setModalOpen(false);
+            }}
+          >
+            <div className="bg-white border border-black w-full max-w-sm">
+              <div className="flex items-center justify-between px-7 py-5 border-b border-black">
+                <span className="text-xs font-medium tracking-widest lowercase">
+                  {mode === "login" ? "sign in" : "create account"}
+                </span>
+                <button
+                  onClick={() => setModalOpen(false)}
+                  className="text-black/40 hover:text-black transition-colors text-lg leading-none"
+                  aria-label="Close"
+                >
+                  x
+                </button>
+              </div>
+
+              <form onSubmit={handleAuthSubmit} className="px-7 py-6 space-y-4">
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="email"
+                    className="text-[11px] font-medium tracking-widest lowercase text-black/60"
+                  >
+                    email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    className="w-full border border-black bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black placeholder:text-black/30"
+                    placeholder="you@example.com"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="password"
+                    className="text-[11px] font-medium tracking-widest lowercase text-black/60"
+                  >
+                    password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    autoComplete={
+                      mode === "register" ? "new-password" : "current-password"
+                    }
+                    required
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    className="w-full border border-black bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black placeholder:text-black/30"
+                    placeholder="......"
+                  />
+                </div>
+
+                {authError && (
+                  <p className="text-xs text-red-600 tracking-wide">
+                    {authError}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full bg-black text-white py-2.5 text-xs font-medium tracking-widest lowercase hover:bg-black/80 disabled:opacity-50 transition-colors mt-2"
+                >
+                  {authLoading
+                    ? mode === "login"
+                      ? "signing in..."
+                      : "creating account..."
+                    : mode === "login"
+                      ? "sign in"
+                      : "create account"}
+                </button>
+              </form>
+
+              <div className="px-7 pb-6">
+                <p className="text-center text-[11px] text-black/50 tracking-wide">
+                  {mode === "login"
+                    ? "don't have an account?"
+                    : "already have an account?"}{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode(mode === "login" ? "register" : "login");
+                      setAuthError(null);
+                    }}
+                    className="text-black underline underline-offset-2 hover:text-black/60 transition-colors"
+                  >
+                    {mode === "login" ? "sign up" : "sign in"}
+                  </button>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
@@ -908,65 +1200,16 @@ export default function Dashboard() {
             />
           )}
           <div className="flex items-center gap-2 border border-foreground/20 px-3 py-1.5">
-            {user ? (
-              <>
-                <span className="text-[10px] tracking-wider text-muted-foreground">
-                  {user.email}
-                </span>
-                <button
-                  onClick={logout}
-                  title="Sign out"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <LogOut size={12} />
-                </button>
-              </>
-            ) : (
-              <form
-                className="flex items-center gap-2"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  setLoginError(null);
-                  setLoginLoading(true);
-                  try {
-                    await login(loginEmail, loginPassword);
-                    setLoginEmail("");
-                    setLoginPassword("");
-                  } catch (err) {
-                    setLoginError(err instanceof Error ? err.message : "Login failed");
-                  } finally {
-                    setLoginLoading(false);
-                  }
-                }}
-              >
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  className="text-[10px] w-32 px-2 py-1 border border-border bg-background text-foreground rounded"
-                  required
-                />
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  className="text-[10px] w-24 px-2 py-1 border border-border bg-background text-foreground rounded"
-                  required
-                />
-                <button
-                  type="submit"
-                  disabled={loginLoading}
-                  className="text-[10px] px-2 py-1 border border-foreground/40 hover:bg-foreground/10 rounded"
-                >
-                  {loginLoading ? "…" : "Sign in"}
-                </button>
-                {loginError && (
-                  <span className="text-[10px] text-destructive">{loginError}</span>
-                )}
-              </form>
-            )}
+            <span className="text-[10px] tracking-wider text-muted-foreground">
+              {user.email}
+            </span>
+            <button
+              onClick={logout}
+              title="Sign out"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <LogOut size={12} />
+            </button>
           </div>
         </div>
       </header>
@@ -979,10 +1222,11 @@ export default function Dashboard() {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-3 px-4 py-2.5 text-xs tracking-wider transition-colors text-left border font-heading ${activeTab === item.id
-                  ? "bg-foreground text-background border-foreground"
-                  : "bg-transparent text-foreground border-border hover:border-foreground/40"
-                  }`}
+                className={`flex items-center gap-3 px-4 py-2.5 text-xs tracking-wider transition-colors text-left border font-heading ${
+                  activeTab === item.id
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-transparent text-foreground border-border hover:border-foreground/40"
+                }`}
               >
                 {item.icon}
                 {item.label}
@@ -1103,7 +1347,8 @@ export default function Dashboard() {
           {activeTab === "geosanctions" && (
             <GeoSanctionsTab
               hasEntities={
-                uploadedSanctionsEntities.length > 0 || manualEntities.length > 0
+                uploadedSanctionsEntities.length > 0 ||
+                manualEntities.length > 0
               }
               entityCount={
                 uploadedSanctionsEntities.length + manualEntities.length
