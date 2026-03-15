@@ -1,10 +1,10 @@
 // Test file for AI2 features - tests the fraud rules engine
 use arrt_backend::services::fraud_rules;
-use arrt_backend::models::fraud::Transaction;
+use arrt_backend::models::fraud::ScoringTx;
 
 #[tokio::test]
 async fn test_fraud_scoring() {
-    let tx = Transaction {
+    let tx = ScoringTx {
         transaction_id: "TXN-001".to_string(),
         customer_name: Some("John Doe".to_string()),
         amount: Some(12000.0),
