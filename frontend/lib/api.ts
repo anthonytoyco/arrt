@@ -276,6 +276,31 @@ export async function scanSanctions(file: File): Promise<SanctionsResponse> {
   return res.json();
 }
 
+// ── Geopolitical Risk ─────────────────────────────────────────────────────────
+
+export interface GeoRiskResult {
+  country: string;
+  risk_score: number;
+  risk_level: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  conflict_events_90d: number;
+  fatalities_90d: number;
+  ai_briefing: string;
+}
+
+export interface GeoRiskResponse {
+  results: GeoRiskResult[];
+}
+
+export async function analyzeGeoRisk(countries: string[]): Promise<GeoRiskResponse> {
+  const res = await fetch(`${BACKEND_URL}/api/fraud/georisk`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ countries }),
+  });
+  if (!res.ok) throw new Error(`Geo risk analysis failed: ${res.status}`);
+  return res.json();
+}
+
 export async function scanAnomalies(file: File): Promise<AnomaliesResponse> {
   const form = new FormData();
   form.append("file", file);

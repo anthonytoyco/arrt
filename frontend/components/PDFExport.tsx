@@ -1,13 +1,14 @@
 "use client";
 
-import type { SanctionsResponse, AnomaliesResponse } from "@/lib/api";
+import type { SanctionsResponse, AnomaliesResponse, GeoRiskResponse } from "@/lib/api";
 
 interface Props {
   sanctionsData: SanctionsResponse | null;
   anomaliesData: AnomaliesResponse | null;
+  geoRiskData: GeoRiskResponse | null;
 }
 
-export function PDFExport({ sanctionsData, anomaliesData }: Props) {
+export function PDFExport({ sanctionsData, anomaliesData, geoRiskData }: Props) {
   function handleExport() {
     const lines: string[] = [
       "yosemite — Compliance Report",
@@ -40,6 +41,15 @@ export function PDFExport({ sanctionsData, anomaliesData }: Props) {
       lines.push("");
     }
 
+    if (geoRiskData) {
+      lines.push("── GEOPOLITICAL RISK ─────────────────────────────────");
+      for (const r of geoRiskData.results) {
+        lines.push(`\n  ${r.country} — ${r.risk_level} (score ${r.risk_score}/100)`);
+        lines.push(`  Conflict events (90d): ${r.conflict_events_90d}  |  Fatalities: ${r.fatalities_90d}`);
+      }
+      lines.push("");
+    }
+
     const win = window.open("", "_blank");
     if (!win) return;
     win.document.write(`<pre style="font-family:monospace;padding:24px;white-space:pre-wrap">${lines.join("\n")}</pre>`);
@@ -50,7 +60,7 @@ export function PDFExport({ sanctionsData, anomaliesData }: Props) {
   return (
     <button
       onClick={handleExport}
-      className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 text-gray-700"
+      className="px-4 py-1.5 text-[10px] uppercase tracking-wider border border-border hover:border-foreground/40 text-foreground transition-colors font-medium"
     >
       Export PDF
     </button>
