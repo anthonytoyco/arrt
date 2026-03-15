@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
 import { Window } from "@/components/Window";
-import { NavWheel, type WheelFeature } from "@/components/NavWheel";
+import { NavBar3D, type NavFeature } from "@/components/NavBar3D";
 import { ProtectionScore } from "@/components/ProtectionScore";
 import { FlaggedTransactions } from "@/components/FlaggedTransactions";
 import { RiskOverview } from "@/components/RiskOverview";
@@ -24,20 +24,20 @@ import type {
 // ── types ──────────────────────────────────────────────────────────────────
 
 interface WindowState {
-  id: WheelFeature;
+  id: NavFeature;
   zIndex: number;
   position: { x: number; y: number };
 }
 
-const DEFAULT_POSITIONS: Record<WheelFeature, { x: number; y: number }> = {
-  fraud:     { x: -520, y: -260 },
-  anomaly:   { x:   60, y: -300 },
-  sanctions: { x: -480, y:   40 },
-  georisk:   { x:  120, y:   40 },
-  reports:   { x: -180, y: -180 },
+const DEFAULT_POSITIONS: Record<NavFeature, { x: number; y: number }> = {
+  fraud:     { x: -580, y: -320 },  // top-left
+  anomaly:   { x:  200, y: -320 },  // top-right
+  sanctions: { x: -580, y:   60 },  // bottom-left
+  georisk:   { x:  200, y:   60 },  // bottom-right
+  reports:   { x: -190, y: -140 },  // center
 };
 
-const WINDOW_TITLES: Record<WheelFeature, string> = {
+const WINDOW_TITLES: Record<NavFeature, string> = {
   fraud:     "Fraud Detection",
   anomaly:   "Anomaly Detector",
   sanctions: "Sanctions Screener",
@@ -45,7 +45,7 @@ const WINDOW_TITLES: Record<WheelFeature, string> = {
   reports:   "Reports",
 };
 
-const WINDOW_WIDTHS: Record<WheelFeature, number> = {
+const WINDOW_WIDTHS: Record<NavFeature, number> = {
   fraud: 420,
   anomaly: 560,
   sanctions: 520,
@@ -84,7 +84,7 @@ function DropZone({ hint, onFile, onRemove, fileName }: {
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) onFile(f); }}
         onClick={() => inputRef.current?.click()}
-        className={`rounded-2xl border-2 border-dashed px-4 py-5 text-center cursor-pointer transition-all ${
+        className={`rounded-lg border-2 border-dashed px-4 py-5 text-center cursor-pointer transition-all ${
           dragging ? "border-blue-400 bg-blue-50" : "border-gray-200 hover:border-gray-300 bg-gray-50"
         }`}
       >
@@ -120,7 +120,7 @@ export default function Dashboard() {
   const [openWindows, setOpenWindows] = useState<WindowState[]>([]);
   const [topZ, setTopZ] = useState(10);
 
-  const openWindow = useCallback((id: WheelFeature) => {
+  const openWindow = useCallback((id: NavFeature) => {
     setOpenWindows((prev) => {
       if (prev.find((w) => w.id === id)) {
         // toggle: already open → close it
@@ -144,7 +144,7 @@ export default function Dashboard() {
     });
   }, [topZ]);
 
-  const openWindowIds = new Set(openWindows.map((w) => w.id as WheelFeature));
+  const openWindowIds = new Set(openWindows.map((w) => w.id as NavFeature));
 
   // ── Fraud data ──────────────────────────────────────────────────────────
   const [fraudScanData, setFraudScanData] = useState<FraudScanResponse | null>(null);
@@ -216,7 +216,7 @@ export default function Dashboard() {
   }
 
   // ── Window content ──────────────────────────────────────────────────────
-  const windowContent: Record<WheelFeature, React.ReactNode> = {
+  const windowContent: Record<NavFeature, React.ReactNode> = {
     fraud: (
       <div className="p-5 space-y-5">
         {fraudScanLoading ? (
@@ -247,7 +247,7 @@ export default function Dashboard() {
           <>
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500">{csvRows.length} rows — click to edit</p>
-              <Button size="sm" className="rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs"
+              <Button size="sm" className="rounded-md bg-orange-500 hover:bg-orange-600 text-white text-xs"
                 disabled={anomaliesLoading} onClick={handleRunAnalysis}>
                 {anomaliesLoading ? "Analyzing…" : "Run Analysis"}
               </Button>
@@ -267,7 +267,7 @@ export default function Dashboard() {
           onRemove={() => { setSanctionsFile(null); setSanctionsData(null); }}
           fileName={sanctionsFile?.name}
         />
-        <Button className="w-full rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-sm"
+        <Button className="w-full rounded-md bg-purple-500 hover:bg-purple-600 text-white text-sm"
           disabled={sanctionsLoading || !sanctionsFile} onClick={handleSanctionsScan}>
           {sanctionsLoading ? "Scanning…" : "Scan Entities"}
         </Button>
@@ -282,9 +282,9 @@ export default function Dashboard() {
           onChange={(e) => setGeoCountries(e.target.value)}
           placeholder="Myanmar, Nigeria, Turkey"
           rows={3}
-          className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+          className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
         />
-        <Button className="w-full rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm"
+        <Button className="w-full rounded-md bg-emerald-500 hover:bg-emerald-600 text-white text-sm"
           disabled={geoRiskLoading || !geoCountries.trim()} onClick={handleGeoRisk}>
           {geoRiskLoading ? "Analyzing…" : "Analyze Risk"}
         </Button>
@@ -328,7 +328,7 @@ export default function Dashboard() {
   return (
     <div className="w-screen h-screen bg-white overflow-hidden relative">
       {/* Top bar */}
-      <header className="absolute top-4 left-4 right-4 flex items-center justify-between px-5 py-3 rounded-2xl border border-white/60 backdrop-blur-md" style={{ zIndex: 9998, background: "rgba(240,240,240,0.7)" }}>
+      <header className="absolute top-4 left-4 right-4 flex items-center justify-between px-5 py-3 rounded-lg border border-white/60 backdrop-blur-md" style={{ zIndex: 9998, background: "rgba(240,240,240,0.7)" }}>
         <div className="flex items-center gap-3">
           <Image src="/yosemite_logo.png" alt="yosemite logo" width={28} height={28} className="rounded-lg" />
           <span className="text-[16px] font-semibold tracking-tight text-gray-900" style={{ fontFamily: "var(--font-space-grotesk)" }}>
@@ -355,8 +355,8 @@ export default function Dashboard() {
         ))}
       </AnimatePresence>
 
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ zIndex: 9999 }}>
-        <NavWheel
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2" style={{ zIndex: 9999 }}>
+        <NavBar3D
           protectionScore={protectionScore}
           openWindows={openWindowIds}
           onOpen={openWindow}

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import { motion } from "framer-motion";
 
 interface WindowProps {
@@ -24,8 +23,6 @@ export function Window({
   children,
   width = 480,
 }: WindowProps) {
-  const constraintsRef = useRef(null);
-
   return (
     <motion.div
       drag
@@ -45,7 +42,7 @@ export function Window({
         width,
       }}
       onMouseDown={() => onFocus(id)}
-      className="rounded-2xl overflow-hidden shadow-window bg-white border border-gray-200/80 select-none"
+      className="rounded-lg overflow-hidden shadow-window bg-white border border-gray-200/80 select-none"
     >
       {/* Title bar */}
       <div
@@ -57,8 +54,8 @@ export function Window({
           onClick={() => onClose(id)}
           className="h-3 w-3 rounded-full bg-red-400 hover:bg-red-500 transition-colors flex-shrink-0"
         />
-        <div className="h-3 w-3 rounded-full bg-yellow-400 flex-shrink-0" />
-        <div className="h-3 w-3 rounded-full bg-green-400 flex-shrink-0" />
+        {/* <div className="h-3 w-3 rounded-full bg-yellow-400 flex-shrink-0" />
+        <div className="h-3 w-3 rounded-full bg-green-400 flex-shrink-0" /> */}
         <span className="ml-2 text-[13px] font-semibold text-gray-600 tracking-tight">
           {title}
         </span>
