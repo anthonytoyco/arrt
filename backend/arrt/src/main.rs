@@ -3,7 +3,7 @@ use axum::http::{HeaderValue, Method};
 use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
 use sqlx::postgres::PgPoolOptions;
 use std::net::SocketAddr;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod auth;
@@ -53,10 +53,13 @@ async fn main() {
         http: reqwest::Client::new(),
         opensanctions_api_key,
     };
-    let frontend_origin = std::env::var("FRONTEND_ORIGIN")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let frontend_origins: Vec<HeaderValue> = std::env::var("FRONTEND_ORIGIN")
+        .unwrap_or_else(|_| "http://localhost:3000,http://127.0.0.1:3000".to_string())
+        .split(',')
+        .map(|s| s.trim().parse::<HeaderValue>().expect("Invalid FRONTEND_ORIGIN"))
+        .collect();
     let cors = CorsLayer::new()
-        .allow_origin(frontend_origin.parse::<HeaderValue>().expect("Invalid FRONTEND_ORIGIN"))
+        .allow_origin(AllowOrigin::list(frontend_origins))
         .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::OPTIONS])
         .allow_headers([AUTHORIZATION, CONTENT_TYPE])
         .allow_credentials(true);
