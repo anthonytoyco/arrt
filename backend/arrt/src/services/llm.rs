@@ -4,6 +4,48 @@ use serde_json::json;
 use crate::models::fraud::{FraudReportSummaryContent, GeoRiskResult};
 use crate::models::risk::{BusinessRiskReport, ConflictEvent, SanctionsHit};
 
+fn hf_api_key() -> String {
+    std::env::var("HF_API_KEY").unwrap_or_default()
+}
+
+fn hf_base_url() -> String {
+    std::env::var("HF_BASE_URL")
+        .unwrap_or_else(|_| "https://qyt7893blb71b5d3.us-east-2.aws.endpoints.huggingface.cloud/v1".to_string())
+}
+
+const HF_MODEL: &str = "openai/gpt-oss-120b";
+
+async fn hf_complete(
+    client: &Client,
+    prompt: &str,
+    max_tokens: u32,
+    temperature: f32,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    let body = json!({
+        "model": HF_MODEL,
+        "messages": [{ "role": "user", "content": prompt }],
+        "max_tokens": max_tokens,
+        "temperature": temperature
+    });
+
+    let resp = client
+        .post(format!("{}/chat/completions", hf_base_url()))
+        .header("Authorization", format!("Bearer {}", hf_api_key()))
+        .json(&body)
+        .send()
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
+
+    let text = resp["choices"][0]["message"]["content"]
+        .as_str()
+        .ok_or_else(|| format!("No content in HF response: {}", resp))?
+        .trim()
+        .to_string();
+
+    Ok(text)
+}
+
 fn gemini_api_key() -> String {
     std::env::var("GEMINI_API_KEY").unwrap_or_default()
 }
@@ -89,7 +131,7 @@ pub async fn summarize_fraud_reports(
         report_context
     );
 
-    let text = gemini_complete(client, &prompt, 800, 0.2).await?;
+    let text = hf_complete(client, &prompt, 800, 0.2).await?;
     let normalized = normalize_json_payload(&text);
     let summary = serde_json::from_str::<FraudReportSummaryContent>(&normalized)?;
     Ok(summary)
@@ -174,7 +216,7 @@ pub async fn explain_sanctions_entity(
         entity_name, hits_text
     );
 
-    let text = gemini_complete(client, &prompt, 300, 0.2).await?;
+    let text = hf_complete(client, &prompt, 600, 0.2).await?;
     let clean = normalize_json_payload(&text);
     let parsed: serde_json::Value = serde_json::from_str(&clean)?;
 
@@ -238,7 +280,7 @@ pub async fn summarize_entity(
         fraud_text, sanctions_text, geo_text
     );
 
-    let text = gemini_complete(client, &prompt, 400, 0.2).await?;
+    let text = hf_complete(client, &prompt, 400, 0.2).await?;
     let clean = normalize_json_payload(&text);
     let parsed: serde_json::Value = serde_json::from_str(&clean)?;
 
@@ -283,7 +325,7 @@ pub async fn chat_with_context(
         fraud_section, sanctions_section, geo_section, message
     );
 
-    gemini_complete(client, &prompt, 500, 0.3).await
+    hf_complete(client, &prompt, 500, 0.3).await
 }
 
 pub async fn analyze_business_risk(

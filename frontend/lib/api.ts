@@ -454,6 +454,26 @@ export async function analyzeGeoRisk(countries: string[]): Promise<GeoRiskRespon
   return res.json();
 }
 
+export interface ChatPayload {
+  message: string;
+  context?: {
+    fraud_summary?: string;
+    sanctions_summary?: string;
+    geo_summary?: string;
+  };
+}
+
+export async function sendChat(payload: ChatPayload): Promise<string> {
+  const res = await apiFetch(`${BACKEND_URL}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`Chat failed: ${res.status}`);
+  const data = await res.json();
+  return data.response;
+}
+
 export async function scanAnomalies(file: File): Promise<AnomaliesResponse> {
   const form = new FormData();
   form.append("file", file);

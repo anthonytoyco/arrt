@@ -429,7 +429,7 @@ export default function Dashboard() {
               .filter(Boolean)
               .map((s) => Number(s))
           : [];
-        const validAmounts = parsedAmounts.filter((n) => !Number.isNaN(n));
+        // const validAmounts = parsedAmounts.filter((n) => !Number.isNaN(n));xwww
         setCsvHeaders((prevHeaders) => {
           const merged = prevHeaders.length ? [...prevHeaders] : [];
           for (const h of newHeaders) {

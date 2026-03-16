@@ -4,10 +4,13 @@ import { useState } from "react";
 
 interface AIExplanationCardProps {
   explanation: string;
+  label?: string;
 }
 
-export function AIExplanationCard({ explanation }: AIExplanationCardProps) {
+export function AIExplanationCard({ explanation, label = "AI explanation" }: AIExplanationCardProps) {
   const [open, setOpen] = useState(false);
+
+  if (!explanation?.trim()) return null;
 
   return (
     <div className="mt-2">
@@ -15,7 +18,7 @@ export function AIExplanationCard({ explanation }: AIExplanationCardProps) {
         onClick={() => setOpen(!open)}
         className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 uppercase tracking-wider transition-colors"
       >
-        {open ? "Hide" : "Show"} AI explanation
+        {open ? "Hide" : "Show"} {label}
         <span>{open ? "—" : "+"}</span>
       </button>
       {open && (

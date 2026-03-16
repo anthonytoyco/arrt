@@ -14,7 +14,7 @@ GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai"
 GEMINI_DEFAULT_MODEL = "gemini-2.0-flash"
 
 # HuggingFace inference endpoints (set HF_BASE_URL in env to switch if one is slow)
-HF_BASE_URL_OLD = "https://vjioo4r1vyvcozuj.us-east-2.aws.endpoints.huggingface.cloud/v1"
+HF_BASE_URL_NEW = "https://vjioo4r1vyvcozuj.us-east-2.aws.endpoints.huggingface.cloud/v1"
 HF_BASE_URL_NEW = "https://qyt7893blb71b5d3.us-east-2.aws.endpoints.huggingface.cloud/v1"
 HF_MODEL = "openai/gpt-oss-120b"
 OPENAI_DEFAULT_MODEL = "gpt-3.5-turbo"
@@ -42,7 +42,7 @@ def make_llm() -> rt.llm.OpenAICompatibleProvider:
         base = os.environ.get("OPENAI_API_BASE") or OPENAI_DEFAULT_BASE
         return _provider(model, base, openai_key)
     if hf_key:
-        base = os.environ.get("HF_BASE_URL", HF_BASE_URL_OLD)
+        base = os.environ.get("HF_BASE_URL", HF_BASE_URL_NEW)
         return _provider(os.environ.get("HF_MODEL", HF_MODEL), base, hf_key)
     return _provider(OPENAI_DEFAULT_MODEL, OPENAI_DEFAULT_BASE, "")
 
@@ -63,7 +63,7 @@ def make_llm_coordinator() -> rt.llm.OpenAICompatibleProvider:
             base = os.environ.get("OPENAI_API_BASE") or OPENAI_DEFAULT_BASE
             key = openai_key
         elif hf_key:
-            base = os.environ.get("HF_BASE_URL", HF_BASE_URL_OLD)
+            base = os.environ.get("HF_BASE_URL", HF_BASE_URL_NEW)
             key = hf_key
         return _provider(coord_model, base, key)
     return make_llm()
@@ -85,7 +85,7 @@ def make_llm_specialist() -> rt.llm.OpenAICompatibleProvider:
             base = os.environ.get("OPENAI_API_BASE") or OPENAI_DEFAULT_BASE
             key = openai_key
         elif hf_key:
-            base = os.environ.get("HF_BASE_URL", HF_BASE_URL_OLD)
+            base = os.environ.get("HF_BASE_URL", HF_BASE_URL_NEW)
             key = hf_key
         return _provider(spec_model, base, key)
     return make_llm()
